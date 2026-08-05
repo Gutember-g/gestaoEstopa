@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db-prod:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+
+  backend-prod:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    restart: always
+    depends_on:
+      - db-prod
+    environment:
+      - SPRING_PROFILE=prod
+      - DB_HOST=db-prod
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - JWT_SECRET_PROD=${JWT_SECRET_PROD}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+    ports:
+      - "8080:8080"
+
+  frontend-prod:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.frontend
+    restart: always
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata_prod:

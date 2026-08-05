@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:erpdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate.format_sql: true
+
+logging:
+  level:
+    root: INFO
+    com.erp.multitenant: DEBUG
+    org.hibernate.SQL: DEBUG
+
+jwt:
+  secret: dev_secret_key_super_segura_para_desenvolvimento_local_123456789
+  expiration: 86400000
+
+cors:
+  allowed-origins: "http://localhost:5173"

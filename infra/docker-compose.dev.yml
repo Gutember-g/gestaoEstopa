@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend-dev:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILE=dev
+    volumes:
+      - ../backend/src:/app/src
+
+  frontend-dev:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.frontend
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_URL=http://localhost:8080/api

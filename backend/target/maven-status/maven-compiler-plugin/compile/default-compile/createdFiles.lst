@@ -1,0 +1,15 @@
+com\erp\multitenant\model\StatusParcela.class
+com\erp\multitenant\config\SecurityConfig.class
+com\erp\multitenant\model\Cliente.class
+com\erp\multitenant\ErpApplication.class
+com\erp\multitenant\repository\ParcelaRepository.class
+com\erp\multitenant\repository\ClienteRepository.class
+com\erp\multitenant\model\Produto.class
+com\erp\multitenant\security\TenantFilter.class
+com\erp\multitenant\repository\ProdutoRepository.class
+com\erp\multitenant\model\StatusProduto.class
+com\erp\multitenant\dto\TopClienteDTO.class
+com\erp\multitenant\model\Parcela.class
+com\erp\multitenant\repository\VendaRepository.class
+com\erp\multitenant\model\Venda.class
+com\erp\multitenant\dto\EvolucaoVendaDTO.class

@@ -1,0 +1,21 @@
+package com.erp.multitenant.repository;
+
+import com.erp.multitenant.model.Parcela;
+import com.erp.multitenant.model.StatusParcela;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+@Repository
+public interface ParcelaRepository extends JpaRepository<Parcela, Long> {
+
+    @Query("SELECT SUM(p.valor) FROM Parcela p WHERE p.tenantId = :tenantId AND p.status = :status")
+    BigDecimal sumValorByTenantAndStatus(@Param("tenantId") String tenantId, @Param("status") StatusParcela status);
+
+    long countByTenantIdAndStatusAndDataVencimentoBefore(String tenantId, StatusParcela status, LocalDate data);
+    long countByTenantIdAndStatusAndDataVencimento(String tenantId, StatusParcela status, LocalDate data);
+}
