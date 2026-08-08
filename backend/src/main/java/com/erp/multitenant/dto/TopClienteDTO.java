@@ -2,5 +2,5 @@ package com.erp.multitenant.dto;
 
 import java.math.BigDecimal;
 
-public record TopClienteDTO(Long clienteId, String nome, BigDecimal valorTotal) {
+public record TopClienteDTO(Long clienteId, String nomeCliente, BigDecimal totalComprado) {
 }

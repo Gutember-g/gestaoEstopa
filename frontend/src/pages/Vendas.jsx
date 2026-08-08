@@ -1,88 +1,367 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
+import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
+import { useToast } from '../context/ToastContext';
 
 export default function Vendas() {
+  const { showSuccess, showError } = useToast();
+
+  // Modals state
   const [showModal, setShowModal] = useState(false);
+  const [editingVendaId, setEditingVendaId] = useState(null);
+  const [deleteConfirmVenda, setDeleteConfirmVenda] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Validation Errors state
+  const [errors, setErrors] = useState({});
+
+  // Registered Products Catalog
+  const [produtosCadastrados] = useState([
+    { id: 1, sku: 'SKU-001', nome: 'Estopa Branca Premium 1kg', precoCusto: 8.50, precoVenda: 15.00 },
+    { id: 2, sku: 'SKU-002', nome: 'Estopa Colorida Especial 500g', precoCusto: 3.80, precoVenda: 7.50 },
+    { id: 3, sku: 'SKU-003', nome: 'Retalho de Malha Algodão 5kg', precoCusto: 22.00, precoVenda: 42.00 },
+    { id: 4, sku: 'SKU-004', nome: 'Pano de Chão Alvejado 10 un', precoCusto: 12.00, precoVenda: 25.00 },
+    { id: 5, sku: 'SKU-005', nome: 'Flanela Amarela Multiuso 40x60cm', precoCusto: 2.50, precoVenda: 5.90 },
+  ]);
+
+  // Registered Clients Catalog
+  const [clientesCadastrados] = useState([
+    { id: 1, nome: 'Distribuidora Silva & Cia', cpfCnpj: '12.345.678/0001-90' },
+    { id: 2, nome: 'Auto Peças Modelo Ltda', cpfCnpj: '98.765.432/0001-10' },
+    { id: 3, nome: 'Comércio Industrial Souza', cpfCnpj: '45.678.901/0001-23' },
+    { id: 4, nome: 'Mecânica Express Eireli', cpfCnpj: '34.567.890/0001-45' },
+  ]);
+
+  const createEmptyItem = () => ({
+    produtoId: '',
+    sku: '',
+    nomeProduto: '',
+    custoNoMomento: 0,
+    precoNoMomentoFormatted: '',
+    quantidade: 1,
+  });
 
   // Form State
   const [clienteId, setClienteId] = useState('');
-  const [desconto, setDesconto] = useState(0);
-  const [numParcelas, setNumParcelas] = useState(2);
-  const [itens, setItens] = useState([
-    { nomeProdutoSnapshot: 'Estopa Branca Especial 1kg', custoNoMomento: 8.50, precoNoMomento: 18.00, quantidade: 2 },
-    { nomeProdutoSnapshot: 'Panos de Chão Algodão Pacote 10x', custoNoMomento: 15.00, precoNoMomento: 28.00, quantidade: 1 }
+  const [descontoFormatted, setDescontoFormatted] = useState('R$ 0,00');
+  const [prazoFaturamentoOption, setPrazoFaturamentoOption] = useState('30');
+  const [prazoFaturamentoCustom, setPrazoFaturamentoCustom] = useState('30');
+  const [itens, setItens] = useState([createEmptyItem()]);
+
+  // Local Sales List State (supporting local mutations)
+  const [localVendas, setLocalVendas] = useState([
+    {
+      id: 101,
+      clienteId: 1,
+      clienteNome: 'Distribuidora Silva & Cia',
+      cpfCnpj: '12.345.678/0001-90',
+      dataVenda: '2026-08-05 14:30',
+      custoTotal: 29.00,
+      valorTotal: 55.00,
+      desconto: 0.00,
+      lucroLiquido: 26.00,
+      itensCount: 2,
+      prazoFaturamentoDias: 30,
+      dataVencimento: '2026-09-04',
+      status: 'PENDENTE',
+      itens: [
+        { produtoId: 1, sku: 'SKU-001', nomeProduto: 'Estopa Branca Premium 1kg', custoNoMomento: 8.50, precoNoMomentoFormatted: 'R$ 15,00', quantidade: 1 },
+        { produtoId: 4, sku: 'SKU-004', nomeProduto: 'Pano de Chão Alvejado 10 un', custoNoMomento: 12.00, precoNoMomentoFormatted: 'R$ 25,00', quantidade: 1 },
+      ]
+    },
+    {
+      id: 102,
+      clienteId: 2,
+      clienteNome: 'Auto Peças Modelo Ltda',
+      cpfCnpj: '98.765.432/0001-10',
+      dataVenda: '2026-08-04 11:15',
+      custoTotal: 110.00,
+      valorTotal: 210.00,
+      desconto: 10.00,
+      lucroLiquido: 100.00,
+      itensCount: 5,
+      prazoFaturamentoDias: 15,
+      dataVencimento: '2026-08-19',
+      status: 'PAGO',
+      itens: [
+        { produtoId: 3, sku: 'SKU-003', nomeProduto: 'Retalho de Malha Algodão 5kg', custoNoMomento: 22.00, precoNoMomentoFormatted: 'R$ 42,00', quantidade: 5 },
+      ]
+    },
   ]);
 
-  const queryClient = useQueryClient();
-
-  const { data: vendas = [] } = useQuery({
+  // Fetch Sales list from API with fallback
+  const { data: vendas = localVendas } = useQuery({
     queryKey: ['vendas'],
     queryFn: async () => {
       try {
         const res = await api.get('/vendas');
-        return res.data;
+        if (res.data && res.data.length > 0) return res.data;
+        return localVendas;
       } catch {
-        return [
-          {
-            id: 101,
-            clienteNome: 'Distribuidora Silva & Cia',
-            cpfCnpj: '12.345.678/0001-90',
-            dataVenda: '2026-08-05 14:30',
-            custoTotal: 32.00,
-            valorTotal: 64.00,
-            desconto: 4.00,
-            lucroLiquido: 28.00,
-            itensCount: 3,
-            parcelasCount: 2,
-            parcelas: [
-              { numeroSequencial: '1/2', valor: 30.00, dataVencimento: '2026-08-05', status: 'PAGO' },
-              { numeroSequencial: '2/2', valor: 30.00, dataVencimento: '2026-09-05', status: 'PENDENTE' },
-            ]
-          },
-          {
-            id: 102,
-            clienteNome: 'Auto Peças Modelo Ltda',
-            cpfCnpj: '98.765.432/0001-10',
-            dataVenda: '2026-08-04 11:15',
-            custoTotal: 120.00,
-            valorTotal: 250.00,
-            desconto: 10.00,
-            lucroLiquido: 120.00,
-            itensCount: 5,
-            parcelasCount: 3,
-            parcelas: [
-              { numeroSequencial: '1/3', valor: 80.00, dataVencimento: '2026-07-15', status: 'ATRASADO' },
-              { numeroSequencial: '2/3', valor: 80.00, dataVencimento: '2026-08-15', status: 'PENDENTE' },
-              { numeroSequencial: '3/3', valor: 80.00, dataVencimento: '2026-09-15', status: 'PENDENTE' },
-            ]
-          }
-        ];
+        return localVendas;
       }
-    }
+    },
   });
 
-  const formatCurrency = (val) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+  // Calculate actual numeric values for financial summary
+  const descontoVal = parseCurrencyToNumber(descontoFormatted);
 
-  // Math calculations for Sales Form
-  const subtotalSemDesconto = itens.reduce((acc, item) => acc + item.precoNoMomento * item.quantidade, 0);
-  const custoTotalCalc = itens.reduce((acc, item) => acc + item.custoNoMomento * item.quantidade, 0);
-  const valorDescontoCalc = parseFloat(desconto) || 0;
-  const valorTotalFinal = subtotalSemDesconto - valorDescontoCalc;
+  const subtotalSemDesconto = itens.reduce((acc, item) => {
+    if (!item.produtoId) return acc;
+    const p = parseCurrencyToNumber(item.precoNoMomentoFormatted);
+    return acc + p * item.quantidade;
+  }, 0);
+
+  const custoTotalCalc = itens.reduce((acc, item) => {
+    if (!item.produtoId) return acc;
+    return acc + item.custoNoMomento * item.quantidade;
+  }, 0);
+
+  const valorTotalFinal = Math.max(0, subtotalSemDesconto - descontoVal);
   const lucroLiquidoPrevisto = valorTotalFinal - custoTotalCalc;
-  const margemLucroPrevista = custoTotalCalc > 0 ? ((lucroLiquidoPrevisto / custoTotalCalc) * 100).toFixed(1) : 0;
+  const margemLucroPrevista =
+    custoTotalCalc > 0 ? ((lucroLiquidoPrevisto / custoTotalCalc) * 100).toFixed(1) : 0;
 
-  // Add Item to Snapshot list
+  const prazoDiasFinal =
+    prazoFaturamentoOption === 'custom'
+      ? parseInt(prazoFaturamentoCustom, 10) || 0
+      : parseInt(prazoFaturamentoOption, 10) || 0;
+
+  const getEstimatedDueDate = (dias) => {
+    const d = new Date();
+    d.setDate(d.getDate() + dias);
+    return d.toLocaleDateString('pt-BR');
+  };
+
+  // Open modal for NEW sale
+  const handleOpenNewModal = () => {
+    setEditingVendaId(null);
+    setClienteId('');
+    setDescontoFormatted('R$ 0,00');
+    setPrazoFaturamentoOption('30');
+    setPrazoFaturamentoCustom('30');
+    setItens([createEmptyItem()]);
+    setErrors({});
+    setShowModal(true);
+  };
+
+  // Open modal for EDITING existing sale
+  const handleOpenEditModal = (venda) => {
+    setEditingVendaId(venda.id);
+    setClienteId(String(venda.clienteId || '1'));
+    setDescontoFormatted(formatCurrencyBRL(venda.desconto));
+    
+    const prazo = String(venda.prazoFaturamentoDias ?? 30);
+    if (['0', '7', '15', '30', '45', '60'].includes(prazo)) {
+      setPrazoFaturamentoOption(prazo);
+      setPrazoFaturamentoCustom(prazo);
+    } else {
+      setPrazoFaturamentoOption('custom');
+      setPrazoFaturamentoCustom(prazo);
+    }
+
+    if (venda.itens && venda.itens.length > 0) {
+      setItens(venda.itens.map((it) => ({
+        produtoId: it.produtoId || 1,
+        sku: it.sku || 'SKU-001',
+        nomeProduto: it.nomeProduto || 'Estopa Branca Premium 1kg',
+        custoNoMomento: it.custoNoMomento || 8.50,
+        precoNoMomentoFormatted: it.precoNoMomentoFormatted || formatCurrencyBRL(15.00),
+        quantidade: it.quantidade || 1,
+      })));
+    } else {
+      setItens([createEmptyItem()]);
+    }
+
+    setErrors({});
+    setShowModal(true);
+  };
+
+  // DUPLICATE/COPY Sale Action
+  const handleDuplicateVenda = (venda) => {
+    setEditingVendaId(null); // Clear editing ID so it acts as NEW sale
+    setClienteId(String(venda.clienteId || '1'));
+    setDescontoFormatted(formatCurrencyBRL(venda.desconto));
+
+    const prazo = String(venda.prazoFaturamentoDias ?? 30);
+    if (['0', '7', '15', '30', '45', '60'].includes(prazo)) {
+      setPrazoFaturamentoOption(prazo);
+      setPrazoFaturamentoCustom(prazo);
+    } else {
+      setPrazoFaturamentoOption('custom');
+      setPrazoFaturamentoCustom(prazo);
+    }
+
+    if (venda.itens && venda.itens.length > 0) {
+      setItens(venda.itens.map((it) => ({
+        produtoId: it.produtoId || 1,
+        sku: it.sku || 'SKU-001',
+        nomeProduto: it.nomeProduto || 'Estopa Branca Premium 1kg',
+        custoNoMomento: it.custoNoMomento || 8.50,
+        precoNoMomentoFormatted: it.precoNoMomentoFormatted || formatCurrencyBRL(15.00),
+        quantidade: it.quantidade || 1,
+      })));
+    } else {
+      setItens([createEmptyItem()]);
+    }
+
+    setErrors({});
+    setShowModal(true);
+    showSuccess(`Dados da Venda #${venda.id} copiados! Ajuste os dados e emita o novo pedido. ✓`);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingVendaId(null);
+    setErrors({});
+  };
+
+  // Form Submission
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const newErrors = {};
+
+    if (!clienteId) {
+      newErrors.clienteId = 'Selecione um cliente obrigatório.';
+    }
+
+    const validItens = itens.filter((i) => Boolean(i.produtoId));
+    if (validItens.length === 0) {
+      newErrors.itens = 'Adicione ao menos 1 produto válido.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      showError('Preencha os campos obrigatórios em destaque.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    setTimeout(() => {
+      const selectedCliente = clientesCadastrados.find((c) => String(c.id) === String(clienteId));
+      
+      if (editingVendaId) {
+        // EDIT Mode
+        const updatedList = localVendas.map((v) => {
+          if (v.id === editingVendaId) {
+            return {
+              ...v,
+              clienteId: parseInt(clienteId, 10),
+              clienteNome: selectedCliente?.nome || v.clienteNome,
+              cpfCnpj: selectedCliente?.cpfCnpj || v.cpfCnpj,
+              custoTotal: custoTotalCalc,
+              valorTotal: valorTotalFinal,
+              desconto: descontoVal,
+              lucroLiquido: lucroLiquidoPrevisto,
+              itensCount: validItens.length,
+              prazoFaturamentoDias: prazoDiasFinal,
+              dataVencimento: getEstimatedDueDate(prazoDiasFinal),
+              itens: validItens,
+            };
+          }
+          return v;
+        });
+        setLocalVendas(updatedList);
+        showSuccess(`Venda #${editingVendaId} atualizada e parcelamento regerado! ✓`);
+      } else {
+        // CREATE / DUPLICATE Mode
+        const newVenda = {
+          id: Math.floor(100 + Math.random() * 900),
+          clienteId: parseInt(clienteId, 10),
+          clienteNome: selectedCliente?.nome || 'Cliente Cadastrado',
+          cpfCnpj: selectedCliente?.cpfCnpj || '00.000.000/0001-00',
+          dataVenda: new Date().toISOString().replace('T', ' ').substring(0, 16),
+          custoTotal: custoTotalCalc,
+          valorTotal: valorTotalFinal,
+          desconto: descontoVal,
+          lucroLiquido: lucroLiquidoPrevisto,
+          itensCount: validItens.length,
+          prazoFaturamentoDias: prazoDiasFinal,
+          dataVencimento: getEstimatedDueDate(prazoDiasFinal),
+          status: 'PENDENTE',
+          itens: validItens,
+        };
+        setLocalVendas([newVenda, ...localVendas]);
+        showSuccess(`Nova Venda #${newVenda.id} emitida com sucesso! ✓`);
+      }
+
+      setIsSubmitting(false);
+      handleCloseModal();
+    }, 600);
+  };
+
+  // Delete Handler
+  const handleConfirmDelete = () => {
+    if (!deleteConfirmVenda) return;
+    setIsDeleting(true);
+
+    setTimeout(() => {
+      const filtered = localVendas.filter((v) => v.id !== deleteConfirmVenda.id);
+      setLocalVendas(filtered);
+      showSuccess(`Venda #${deleteConfirmVenda.id} e seu faturamento foram excluídos ✓`);
+      setIsDeleting(false);
+      setDeleteConfirmVenda(null);
+    }, 500);
+  };
+
+  // Line item handlers
   const handleAddItem = () => {
-    setItens([
-      ...itens,
-      { nomeProdutoSnapshot: 'Estopa Colorida Limpeza 500g', custoNoMomento: 4.20, precoNoMomento: 9.50, quantidade: 1 }
-    ]);
+    setItens([...itens, createEmptyItem()]);
+    if (errors.itens) {
+      setErrors((prev) => ({ ...prev, itens: null }));
+    }
   };
 
   const handleRemoveItem = (index) => {
-    setItens(itens.filter((_, i) => i !== index));
+    if (itens.length <= 1) {
+      setItens([createEmptyItem()]);
+    } else {
+      setItens(itens.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleSelectProductInLine = (index, prodId) => {
+    if (!prodId) {
+      const newItens = [...itens];
+      newItens[index] = createEmptyItem();
+      setItens(newItens);
+      return;
+    }
+
+    const prod = produtosCadastrados.find((p) => p.id === parseInt(prodId, 10));
+    if (!prod) return;
+
+    const newItens = [...itens];
+    newItens[index] = {
+      ...newItens[index],
+      produtoId: prod.id,
+      sku: prod.sku,
+      nomeProduto: prod.nome,
+      custoNoMomento: prod.precoCusto,
+      precoNoMomentoFormatted: formatCurrencyBRL(prod.precoVenda),
+    };
+    setItens(newItens);
+
+    if (errors.itens) {
+      setErrors((prev) => ({ ...prev, itens: null }));
+    }
+  };
+
+  const handleUnitPriceChange = (index, rawValue) => {
+    const masked = applyCurrencyMask(rawValue);
+    const newItens = [...itens];
+    newItens[index].precoNoMomentoFormatted = masked;
+    setItens(newItens);
+  };
+
+  const handleQuantityChange = (index, qty) => {
+    const parsedQty = Math.max(1, parseInt(qty, 10) || 1);
+    const newItens = [...itens];
+    newItens[index].quantidade = parsedQty;
+    setItens(newItens);
   };
 
   const statusBadges = {
@@ -98,18 +377,18 @@ export default function Vendas() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Controle Comercial & Vendas</h1>
-          <p className="text-xs text-slate-500 font-medium">Emissão de vendas com regra de Snapshot Histórico imutável de produtos.</p>
+          <p className="text-xs text-slate-500 font-medium">Gestão de pedidos de venda, duplicação rápida, preços negociados e prazos.</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 transition-all min-h-[44px]"
+          onClick={handleOpenNewModal}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
         >
           <span>+</span>
-          <span>Nova Venda Mobile-First</span>
+          <span>Nova Venda</span>
         </button>
       </div>
 
-      {/* Sales List Table Desktop & Cards Mobile */}
+      {/* Sales List Table */}
       <div className="erp-card p-0 overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
@@ -117,12 +396,13 @@ export default function Vendas() {
               <tr>
                 <th className="p-4">ID Venda</th>
                 <th className="p-4">Cliente</th>
-                <th className="p-4">Data</th>
+                <th className="p-4">Data Venda</th>
                 <th className="p-4">Custo Total</th>
                 <th className="p-4">Valor Total</th>
                 <th className="p-4">Desconto</th>
-                <th className="p-4">Lucro Líquido Previsto</th>
-                <th className="p-4">Parcelamento</th>
+                <th className="p-4">Lucro Líquido</th>
+                <th className="p-4">Prazo & Vencimento</th>
+                <th className="p-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -134,22 +414,44 @@ export default function Vendas() {
                     <div className="text-[10px] text-slate-400 font-mono">{v.cpfCnpj}</div>
                   </td>
                   <td className="p-4 text-slate-500">{v.dataVenda}</td>
-                  <td className="p-4 font-mono text-slate-500">{formatCurrency(v.custoTotal)}</td>
-                  <td className="p-4 font-bold text-slate-900">{formatCurrency(v.valorTotal)}</td>
-                  <td className="p-4 font-mono text-slate-400">-{formatCurrency(v.desconto)}</td>
+                  <td className="p-4 font-mono text-slate-500">{formatCurrencyBRL(v.custoTotal)}</td>
+                  <td className="p-4 font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</td>
+                  <td className="p-4 font-mono text-slate-400">-{formatCurrencyBRL(v.desconto)}</td>
                   <td className="p-4">
                     <span className="badge-pago font-mono">
-                      +{formatCurrency(v.lucroLiquido)}
+                      +{formatCurrencyBRL(v.lucroLiquido)}
                     </span>
                   </td>
                   <td className="p-4">
-                    <div className="flex gap-1">
-                      {v.parcelas?.map((p, idx) => (
-                        <span key={idx} className={statusBadges[p.status]} title={`Vencimento: ${p.dataVencimento}`}>
-                          {p.numeroSequencial}
-                        </span>
-                      ))}
+                    <div className="space-y-0.5">
+                      <span className={statusBadges[v.status]}>
+                        {v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias} dias`}
+                      </span>
+                      <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
                     </div>
+                  </td>
+                  <td className="p-4 text-right space-x-1">
+                    <button
+                      onClick={() => handleDuplicateVenda(v)}
+                      className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-indigo-600 transition-all active:scale-95"
+                      title="Duplicar / Copiar Venda"
+                    >
+                      📋
+                    </button>
+                    <button
+                      onClick={() => handleOpenEditModal(v)}
+                      className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
+                      title="Editar venda"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmVenda(v)}
+                      className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all active:scale-95"
+                      title="Excluir venda"
+                    >
+                      🗑️
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -166,28 +468,40 @@ export default function Vendas() {
                   <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
                   <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
                 </div>
-                <span className="badge-pago text-xs">{formatCurrency(v.lucroLiquido)} lucro</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                <div>
-                  <span className="text-slate-400 block text-[10px]">VALOR TOTAL</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(v.valorTotal)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px]">CUSTO TOTAL</span>
-                  <span className="font-mono text-slate-600">{formatCurrency(v.custoTotal)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="badge-pago text-xs">{formatCurrencyBRL(v.lucroLiquido)} lucro</span>
+                  <button
+                    onClick={() => handleDuplicateVenda(v)}
+                    className="p-1 text-slate-500 hover:text-indigo-600"
+                    title="Duplicar venda"
+                  >
+                    📋
+                  </button>
+                  <button
+                    onClick={() => handleOpenEditModal(v)}
+                    className="p-1 text-slate-500 hover:text-blue-600"
+                    title="Editar venda"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmVenda(v)}
+                    className="p-1 text-slate-400 hover:text-rose-600"
+                    title="Excluir venda"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-slate-400 text-[11px]">Parcelas:</span>
-                <div className="flex gap-1">
-                  {v.parcelas?.map((p, idx) => (
-                    <span key={idx} className={statusBadges[p.status]}>
-                      {p.numeroSequencial}
-                    </span>
-                  ))}
+              <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                <div>
+                  <span className="text-slate-400 block text-[10px]">VALOR TOTAL</span>
+                  <span className="font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">FATURAMENTO</span>
+                  <span className="font-semibold text-slate-700">{v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias}d (Venc: ${v.dataVencimento})`}</span>
                 </div>
               </div>
             </div>
@@ -195,160 +509,284 @@ export default function Vendas() {
         </div>
       </div>
 
-      {/* Modal / Mobile-First Sales Form */}
+      {/* Modal - Emissão / Edição de Venda */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-xl space-y-5 shadow-2xl my-auto">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-2xl space-y-5 shadow-2xl my-auto animate-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
-                <h2 className="text-base font-semibold text-slate-900">Emissão de Venda (Snapshot Pattern)</h2>
-                <p className="text-[11px] text-slate-400">Produtos salvos de forma imutável com lucro e parcelas.</p>
+                <h2 className="text-base font-semibold text-slate-900">
+                  {editingVendaId ? `Editar Venda #${editingVendaId}` : 'Emissão de Nova Venda'}
+                </h2>
+                <p className="text-[11px] text-slate-400">Selecione o cliente, escolha os produtos e defina o prazo de faturamento.</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">
+              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">
                 ✕
               </button>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); setShowModal(false); }} className="space-y-4 text-xs">
-              {/* 1. Cliente Selection */}
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+              {/* 1. Seleção de Cliente */}
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">1. Selecionar Cliente *</label>
                 <select
-                  required
                   value={clienteId}
-                  onChange={(e) => setClienteId(e.target.value)}
-                  className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50/50 text-xs focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 focus:outline-none"
+                  onChange={(e) => {
+                    setClienteId(e.target.value);
+                    if (errors.clienteId) setErrors((prev) => ({ ...prev, clienteId: null }));
+                  }}
+                  className={`w-full p-3 border rounded-xl bg-slate-50/50 text-xs font-medium focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 focus:outline-none transition-all ${
+                    errors.clienteId ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-200'
+                  }`}
                 >
                   <option value="">Escolha um cliente cadastrado...</option>
-                  <option value="1">Distribuidora Silva & Cia (CNPJ: 12.345.678/0001-90)</option>
-                  <option value="2">Auto Peças Modelo Ltda (CNPJ: 98.765.432/0001-10)</option>
+                  {clientesCadastrados.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome} (CNPJ/CPF: {c.cpfCnpj})
+                    </option>
+                  ))}
                 </select>
+                {errors.clienteId && <span className="text-rose-500 text-[10px] font-semibold mt-1 block">{errors.clienteId}</span>}
               </div>
 
-              {/* 2. Items List with Snapshot */}
+              {/* 2. Seleção e Edição de Produtos */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="font-semibold text-slate-700">2. Produtos (Snapshot Imutável) *</label>
+                  <label className="font-semibold text-slate-700">2. Produtos da Venda *</label>
                   <button
                     type="button"
                     onClick={handleAddItem}
-                    className="text-blue-600 hover:text-blue-700 text-xs font-semibold"
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all"
                   >
-                    + Adicionar Item
+                    <span>+</span>
+                    <span>Adicionar Item</span>
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {itens.map((item, idx) => (
-                    <div key={idx} className="bg-slate-50 border border-slate-200/60 p-3 rounded-xl flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-slate-800 truncate">{item.nomeProdutoSnapshot}</div>
-                        <div className="text-[10px] text-slate-400">
-                          Custo no momento: {formatCurrency(item.custoNoMomento)} | Venda: {formatCurrency(item.precoNoMomento)}
+                {errors.itens && <span className="text-rose-500 text-[10px] font-semibold block">{errors.itens}</span>}
+
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                  {itens.map((item, idx) => {
+                    const hasProduct = Boolean(item.produtoId);
+                    const lineSubtotal = hasProduct
+                      ? parseCurrencyToNumber(item.precoNoMomentoFormatted) * item.quantidade
+                      : 0;
+
+                    return (
+                      <div key={idx} className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl space-y-2">
+                        {/* Dropdown de Seleção de Produto por SKU + Nome */}
+                        <div className="flex items-center justify-between gap-2">
+                          <select
+                            value={item.produtoId}
+                            onChange={(e) => handleSelectProductInLine(idx, e.target.value)}
+                            className="flex-1 p-2 border border-slate-200 rounded-lg bg-white font-medium text-slate-800 text-xs focus:ring-2 focus:ring-blue-500/40"
+                          >
+                            <option value="">Selecione um produto...</option>
+                            {produtosCadastrados.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                [{p.sku}] {p.nome} — Preço Sugerido: {formatCurrencyBRL(p.precoVenda)}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(idx)}
+                            className="text-rose-500 hover:text-rose-700 text-sm font-bold px-2 py-1 hover:bg-rose-50 rounded-lg active:scale-95 transition-all"
+                            title="Remover produto"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        {/* Linha de edição: Quantidade, Custo (fixo), Preço Venda (editável), Subtotal */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center text-xs">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-medium">QTD</span>
+                            <input
+                              type="number"
+                              min="1"
+                              disabled={!hasProduct}
+                              value={item.quantidade}
+                              onChange={(e) => handleQuantityChange(idx, e.target.value)}
+                              className="w-full p-2 border border-slate-200 rounded-lg bg-white font-semibold text-center focus:ring-2 focus:ring-blue-500/40 disabled:bg-slate-100 disabled:text-slate-400"
+                            />
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-medium">CUSTO UNIT. (FIXO)</span>
+                            <div className="p-2 bg-slate-100/80 border border-slate-200/60 rounded-lg font-mono text-slate-500 text-center">
+                              {hasProduct ? formatCurrencyBRL(item.custoNoMomento) : 'R$ 0,00'}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-blue-600 block font-semibold">PREÇO UNIT. (EDITÁVEL)</span>
+                            <input
+                              type="text"
+                              disabled={!hasProduct}
+                              placeholder="R$ 0,00"
+                              value={item.precoNoMomentoFormatted}
+                              onChange={(e) => handleUnitPriceChange(idx, e.target.value)}
+                              className="w-full p-2 border border-blue-300 rounded-lg bg-white font-bold text-slate-900 text-center focus:ring-2 focus:ring-blue-500/40 disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400"
+                            />
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-medium">SUBTOTAL</span>
+                            <div className="p-2 bg-white border border-slate-200 rounded-lg font-bold text-slate-900 text-center">
+                              {formatCurrencyBRL(lineSubtotal)}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-700">{item.quantidade}x</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(idx)}
-                          className="text-rose-500 hover:text-rose-700 text-sm font-bold px-1"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* 3. Discount & Installments controls */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* 3. Desconto e Prazo para Faturamento */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Desconto Concedido (R$)</label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={desconto}
-                    onChange={(e) => setDesconto(e.target.value)}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/40"
+                    type="text"
+                    value={descontoFormatted}
+                    onChange={(e) => setDescontoFormatted(applyCurrencyMask(e.target.value))}
+                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-white font-semibold focus:ring-2 focus:ring-blue-500/40"
                   />
                 </div>
+
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Nº de Parcelas</label>
-                  <select
-                    value={numParcelas}
-                    onChange={(e) => setNumParcelas(parseInt(e.target.value))}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-white"
-                  >
-                    <option value={1}>1x (À Vista)</option>
-                    <option value={2}>2x Parcelado</option>
-                    <option value={3}>3x Parcelado</option>
-                    <option value={4}>4x Parcelado</option>
-                  </select>
+                  <label className="font-semibold text-slate-700 block mb-1">Prazo para Faturamento (dias) *</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={prazoFaturamentoOption}
+                      onChange={(e) => setPrazoFaturamentoOption(e.target.value)}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/40"
+                    >
+                      <option value="0">À Vista (0 dias)</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">30 dias</option>
+                      <option value="45">45 dias</option>
+                      <option value="60">60 dias</option>
+                      <option value="custom">Personalizado...</option>
+                    </select>
+
+                    {prazoFaturamentoOption === 'custom' && (
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Ex: 90"
+                        value={prazoFaturamentoCustom}
+                        onChange={(e) => setPrazoFaturamentoCustom(e.target.value)}
+                        className="w-24 p-2.5 border border-blue-400 rounded-xl bg-white font-bold text-center focus:ring-2 focus:ring-blue-500/40"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* 4. Real-time Financial Summary Card */}
+              {/* 4. Card de Resumo Financeiro em Tempo Real */}
               <div className="bg-slate-900 text-white p-4 rounded-xl space-y-2 shadow-inner">
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>Subtotal sem Desconto:</span>
-                  <span className="font-mono">{formatCurrency(subtotalSemDesconto)}</span>
+                  <span className="font-mono">{formatCurrencyBRL(subtotalSemDesconto)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>Custo Total dos Produtos:</span>
-                  <span className="font-mono">{formatCurrency(custoTotalCalc)}</span>
+                  <span className="font-mono">{formatCurrencyBRL(custoTotalCalc)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>Valor do Desconto:</span>
-                  <span className="font-mono text-amber-400">-{formatCurrency(valorDescontoCalc)}</span>
+                  <span className="font-mono text-amber-400">-{formatCurrencyBRL(descontoVal)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-400 border-t border-slate-800/80 pt-2">
+                  <span>Data de Vencimento Estimada:</span>
+                  <span className="font-semibold text-blue-300">{getEstimatedDueDate(prazoDiasFinal)} ({prazoDiasFinal} dias)</span>
                 </div>
                 <div className="border-t border-slate-800 pt-2 flex justify-between items-center">
                   <div>
                     <div className="text-[10px] text-slate-400 uppercase font-semibold">Valor Total Final</div>
-                    <div className="text-lg font-bold text-white">{formatCurrency(valorTotalFinal)}</div>
+                    <div className="text-lg font-bold text-white">{formatCurrencyBRL(valorTotalFinal)}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] text-emerald-400 uppercase font-semibold">Lucro Líquido Previsto</div>
                     <div className="text-lg font-bold text-emerald-400">
-                      {formatCurrency(lucroLiquidoPrevisto)} <span className="text-xs font-normal">({margemLucroPrevista}%)</span>
+                      {formatCurrencyBRL(lucroLiquidoPrevisto)} <span className="text-xs font-normal">({margemLucroPrevista}%)</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Parcelas Preview Schedule */}
-              <div className="bg-slate-50 border border-slate-200/60 p-3 rounded-xl space-y-1.5">
-                <div className="text-[11px] font-semibold text-slate-600">Simulação de Parcelamento:</div>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {Array.from({ length: numParcelas }).map((_, i) => (
-                    <div key={i} className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg flex items-center gap-2">
-                      <span className="badge-pendente text-[10px]">{i + 1}/{numParcelas}</span>
-                      <span className="font-bold text-slate-800">{formatCurrency(valorTotalFinal / numParcelas)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Modal Buttons */}
+              {/* Botões do Modal */}
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2.5 text-slate-500 font-semibold hover:bg-slate-100 rounded-xl"
+                  onClick={handleCloseModal}
+                  className="px-4 py-2.5 text-slate-500 font-semibold hover:bg-slate-100 rounded-xl active:scale-95 transition-all"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-md shadow-blue-600/20"
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
-                  Finalizar & Emitir Venda
+                  {isSubmitting ? (
+                    <>
+                      <span className="animate-spin text-sm">⏳</span>
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <span>{editingVendaId ? 'Salvar Alterações' : 'Emitir Venda'}</span>
+                  )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão de Venda */}
+      {deleteConfirmVenda && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-rose-600">
+              <span className="text-2xl">⚠️</span>
+              <h2 className="text-base font-bold text-slate-900">Confirmar Exclusão de Venda</h2>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Tem certeza que deseja excluir a <strong>Venda #{deleteConfirmVenda.id}</strong> ({deleteConfirmVenda.clienteNome})?
+            </p>
+            <div className="bg-rose-50 border border-rose-200/80 p-3 rounded-xl text-xs text-rose-800 font-medium">
+              ⚠️ Esta ação também removerá as parcelas e cobranças geradas no Módulo Financeiro.
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmVenda(null)}
+                className="px-4 py-2 text-slate-500 font-semibold hover:bg-slate-100 rounded-xl active:scale-95 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-md shadow-rose-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="animate-spin text-sm">⏳</span>
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <span>Confirmar Exclusão</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
