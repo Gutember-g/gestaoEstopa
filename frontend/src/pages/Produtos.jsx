@@ -189,57 +189,78 @@ export default function Produtos() {
 
       {isLoading ? (
         <div className="text-center py-12 text-slate-400 text-sm">Carregando catálogo...</div>
+      ) : produtos.length === 0 ? (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center text-slate-500 space-y-3 shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-xl">
+            📦
+          </div>
+          <p className="text-sm font-semibold text-slate-700">Nenhum produto cadastrado</p>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">Clique em "+ Novo Produto" para adicionar o primeiro item ao catálogo.</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {produtos.map((p) => (
-            <div key={p.id} className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3 flex flex-col justify-between group hover:border-blue-300 hover:shadow-md transition-all">
-              <div>
-                <div className="flex justify-between items-start">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                    p.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                  }`}>
-                    {p.status}
-                  </span>
-                  
-                  {/* Action buttons (Hover/Visible) */}
-                  <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleOpenEditModal(p)}
-                      className="p-1 hover:bg-slate-100 rounded text-xs text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
-                      title="Editar produto"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirmProd(p)}
-                      className="p-1 hover:bg-rose-50 rounded text-xs text-slate-400 hover:text-rose-600 active:scale-95 transition-all"
-                      title="Excluir produto"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-                <h3 className="font-bold text-slate-800 text-sm mt-2">{p.nome}</h3>
-              </div>
-
-              <div className="space-y-1 text-xs border-t border-slate-100 pt-3">
-                <div className="flex justify-between text-slate-500">
-                  <span>Preço de Custo:</span>
-                  <span className="font-mono">{formatCurrencyBRL(p.precoCusto)}</span>
-                </div>
-                <div className="flex justify-between text-slate-800 font-bold">
-                  <span>Preço de Venda:</span>
-                  <span className="text-blue-600">{formatCurrencyBRL(p.precoVenda)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs pt-1">
-                  <span className="text-slate-400 text-[11px]">Margem de Lucro:</span>
-                  <span className="font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
-                    +{p.margemLucro}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
+                <tr>
+                  <th className="p-4">Produto</th>
+                  <th className="p-4">Preço de Custo</th>
+                  <th className="p-4">Preço de Venda</th>
+                  <th className="p-4">Margem de Lucro</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {produtos.map((p) => (
+                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-4">
+                      <div className="font-bold text-slate-800 text-sm">{p.nome}</div>
+                      {p.sku && <div className="text-[10px] text-slate-400 font-mono">{p.sku}</div>}
+                    </td>
+                    <td className="p-4 font-mono text-slate-600 font-medium">
+                      {formatCurrencyBRL(p.precoCusto)}
+                    </td>
+                    <td className="p-4 font-mono font-extrabold text-blue-600">
+                      {formatCurrencyBRL(p.precoVenda)}
+                    </td>
+                    <td className="p-4">
+                      <span className="font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md text-[11px] font-mono">
+                        +{typeof p.margemLucro === 'number' ? p.margemLucro.toFixed(2).replace('.', ',') : p.margemLucro}%
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span
+                        className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border ${
+                          p.status === 'ATIVO'
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                            : 'bg-slate-100 text-slate-400 border-slate-200'
+                        }`}
+                      >
+                        {p.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right space-x-1">
+                      <button
+                        onClick={() => handleOpenEditModal(p)}
+                        className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
+                        title="Editar produto"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmProd(p)}
+                        className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all active:scale-95"
+                        title="Excluir produto"
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
