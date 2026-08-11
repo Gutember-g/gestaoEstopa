@@ -3,9 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
 import { useToast } from '../context/ToastContext';
+import MonthFilter from '../components/MonthFilter';
 
 export default function Vendas() {
   const { showSuccess, showError } = useToast();
+
+  // Period filter state
+  const [filterPeriod, setFilterPeriod] = useState({
+    mes: new Date().getMonth() + 1,
+    ano: new Date().getFullYear(),
+  });
 
   // Modals state
   const [showModal, setShowModal] = useState(false);
@@ -91,16 +98,27 @@ export default function Vendas() {
     },
   ]);
 
-  // Fetch Sales list from API with fallback
-  const { data: vendas = localVendas } = useQuery({
-    queryKey: ['vendas'],
+  // Fetch Sales list from API with fallback filtering by period
+  const { data: vendas = [], isFetching } = useQuery({
+    queryKey: ['vendas', filterPeriod.mes, filterPeriod.ano],
     queryFn: async () => {
       try {
-        const res = await api.get('/vendas');
-        if (res.data && res.data.length > 0) return res.data;
-        return localVendas;
+        const res = await api.get('/vendas', {
+          params: { mes: filterPeriod.mes, ano: filterPeriod.ano }
+        });
+        if (res.data) return res.data;
+        return [];
       } catch {
-        return localVendas;
+        return localVendas.filter((v) => {
+          if (!v.dataVenda) return true;
+          const parts = v.dataVenda.split('-');
+          if (parts.length >= 2) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            return month === filterPeriod.mes && year === filterPeriod.ano;
+          }
+          return true;
+        });
       }
     },
   });
@@ -371,142 +389,175 @@ export default function Vendas() {
     CANCELADO: 'badge-cancelado',
   };
 
+  const MESES_NOME = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  const periodLabel = `${MESES_NOME[filterPeriod.mes - 1] || ''} ${filterPeriod.ano}`;
+
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
       {/* Header section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Controle Comercial & Vendas</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Controle Comercial & Vendas</h1>
+            {isFetching && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-600 animate-pulse border border-blue-100">
+                <svg className="w-3 h-3 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Carregando...
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 font-medium">Gestão de pedidos de venda, duplicação rápida, preços negociados e prazos.</p>
         </div>
-        <button
-          onClick={handleOpenNewModal}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
-        >
-          <span>+</span>
-          <span>Nova Venda</span>
-        </button>
+
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <MonthFilter onChange={setFilterPeriod} />
+          <button
+            onClick={handleOpenNewModal}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
+          >
+            <span>+</span>
+            <span>Nova Venda</span>
+          </button>
+        </div>
       </div>
 
       {/* Sales List Table */}
       <div className="erp-card p-0 overflow-hidden">
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-semibold text-slate-500 tracking-wider">
-              <tr>
-                <th className="p-4">ID Venda</th>
-                <th className="p-4">Cliente</th>
-                <th className="p-4">Data Venda</th>
-                <th className="p-4">Custo Total</th>
-                <th className="p-4">Valor Total</th>
-                <th className="p-4">Desconto</th>
-                <th className="p-4">Lucro Líquido</th>
-                <th className="p-4">Prazo & Vencimento</th>
-                <th className="p-4 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {vendas.map((v) => (
-                <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-4 font-mono font-bold text-slate-900">#{v.id}</td>
-                  <td className="p-4">
-                    <div className="font-semibold text-slate-800">{v.clienteNome}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{v.cpfCnpj}</div>
-                  </td>
-                  <td className="p-4 text-slate-500">{v.dataVenda}</td>
-                  <td className="p-4 font-mono text-slate-500">{formatCurrencyBRL(v.custoTotal)}</td>
-                  <td className="p-4 font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</td>
-                  <td className="p-4 font-mono text-slate-400">-{formatCurrencyBRL(v.desconto)}</td>
-                  <td className="p-4">
-                    <span className="badge-pago font-mono">
-                      +{formatCurrencyBRL(v.lucroLiquido)}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="space-y-0.5">
-                      <span className={statusBadges[v.status]}>
-                        {v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias} dias`}
-                      </span>
-                      <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-right space-x-1">
-                    <button
-                      onClick={() => handleDuplicateVenda(v)}
-                      className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-indigo-600 transition-all active:scale-95"
-                      title="Duplicar / Copiar Venda"
-                    >
-                      📋
-                    </button>
-                    <button
-                      onClick={() => handleOpenEditModal(v)}
-                      className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
-                      title="Editar venda"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirmVenda(v)}
-                      className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all active:scale-95"
-                      title="Excluir venda"
-                    >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile View Cards */}
-        <div className="md:hidden divide-y divide-slate-100">
-          {vendas.map((v) => (
-            <div key={v.id} className="p-4 space-y-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
-                  <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="badge-pago text-xs">{formatCurrencyBRL(v.lucroLiquido)} lucro</span>
-                  <button
-                    onClick={() => handleDuplicateVenda(v)}
-                    className="p-1 text-slate-500 hover:text-indigo-600"
-                    title="Duplicar venda"
-                  >
-                    📋
-                  </button>
-                  <button
-                    onClick={() => handleOpenEditModal(v)}
-                    className="p-1 text-slate-500 hover:text-blue-600"
-                    title="Editar venda"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirmVenda(v)}
-                    className="p-1 text-slate-400 hover:text-rose-600"
-                    title="Excluir venda"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                <div>
-                  <span className="text-slate-400 block text-[10px]">VALOR TOTAL</span>
-                  <span className="font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px]">FATURAMENTO</span>
-                  <span className="font-semibold text-slate-700">{v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias}d (Venc: ${v.dataVencimento})`}</span>
-                </div>
-              </div>
+        {vendas.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-xl">
+              🛒
             </div>
-          ))}
-        </div>
+            <p className="text-sm font-semibold text-slate-700">Nenhuma venda encontrada em {periodLabel}</p>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">Não foram encontradas vendas registradas para o período selecionado.</p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-semibold text-slate-500 tracking-wider">
+                  <tr>
+                    <th className="p-4">ID Venda</th>
+                    <th className="p-4">Cliente</th>
+                    <th className="p-4">Data Venda</th>
+                    <th className="p-4">Custo Total</th>
+                    <th className="p-4">Valor Total</th>
+                    <th className="p-4">Desconto</th>
+                    <th className="p-4">Lucro Líquido</th>
+                    <th className="p-4">Prazo & Vencimento</th>
+                    <th className="p-4 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {vendas.map((v) => (
+                    <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-4 font-mono font-bold text-slate-900">#{v.id}</td>
+                      <td className="p-4">
+                        <div className="font-semibold text-slate-800">{v.clienteNome}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{v.cpfCnpj}</div>
+                      </td>
+                      <td className="p-4 text-slate-500">{v.dataVenda}</td>
+                      <td className="p-4 font-mono text-slate-500">{formatCurrencyBRL(v.custoTotal)}</td>
+                      <td className="p-4 font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</td>
+                      <td className="p-4 font-mono text-slate-400">-{formatCurrencyBRL(v.desconto)}</td>
+                      <td className="p-4">
+                        <span className="badge-pago font-mono">
+                          +{formatCurrencyBRL(v.lucroLiquido)}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-0.5">
+                          <span className={statusBadges[v.status]}>
+                            {v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias} dias`}
+                          </span>
+                          <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
+                        </div>
+                      </td>
+                      <td className="p-4 text-right space-x-1">
+                        <button
+                          onClick={() => handleDuplicateVenda(v)}
+                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-indigo-600 transition-all active:scale-95"
+                          title="Duplicar / Copiar Venda"
+                        >
+                          📋
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditModal(v)}
+                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
+                          title="Editar venda"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmVenda(v)}
+                          className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all active:scale-95"
+                          title="Excluir venda"
+                        >
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View Cards */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {vendas.map((v) => (
+                <div key={v.id} className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
+                      <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="badge-pago text-xs">{formatCurrencyBRL(v.lucroLiquido)} lucro</span>
+                      <button
+                        onClick={() => handleDuplicateVenda(v)}
+                        className="p-1 text-slate-500 hover:text-indigo-600"
+                        title="Duplicar venda"
+                      >
+                        📋
+                      </button>
+                      <button
+                        onClick={() => handleOpenEditModal(v)}
+                        className="p-1 text-slate-500 hover:text-blue-600"
+                        title="Editar venda"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmVenda(v)}
+                        className="p-1 text-slate-400 hover:text-rose-600"
+                        title="Excluir venda"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">VALOR TOTAL</span>
+                      <span className="font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">FATURAMENTO</span>
+                      <span className="font-semibold text-slate-700">{v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias}d (Venc: ${v.dataVencimento})`}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Modal - Emissão / Edição de Venda */}

@@ -34,4 +34,7 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
            "GROUP BY CAST(v.dataVenda AS string) " +
            "ORDER BY CAST(v.dataVenda AS string) ASC")
     List<EvolucaoVendaDTO> findEvolucaoDiaria(@Param("tenantId") String tenantId, @Param("dataInicio") LocalDateTime dataInicio);
+
+    @Query("SELECT v FROM Venda v WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano ORDER BY v.dataVenda DESC")
+    List<Venda> findByMesEAno(@Param("tenantId") String tenantId, @Param("mes") Integer mes, @Param("ano") Integer ano);
 }

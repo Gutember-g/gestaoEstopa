@@ -4,10 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatCurrencyBRL } from '../utils/money';
 import { useToast } from '../context/ToastContext';
+import MonthFilter from '../components/MonthFilter';
 
 export default function Financeiro() {
   const { showSuccess } = useToast();
   const navigate = useNavigate();
+
+  // Period filter state
+  const [filterPeriod, setFilterPeriod] = useState({
+    mes: new Date().getMonth() + 1,
+    ano: new Date().getFullYear(),
+  });
+
   const [filterStatus, setFilterStatus] = useState('TODAS');
   const [selectedVendaDetails, setSelectedVendaDetails] = useState(null);
 
@@ -77,15 +85,31 @@ export default function Financeiro() {
     },
   ]);
 
-  const { data: parcelas = localParcelas } = useQuery({
-    queryKey: ['parcelas'],
+  const { data: parcelas = [], isFetching } = useQuery({
+    queryKey: ['parcelas', filterPeriod.mes, filterPeriod.ano, filterStatus],
     queryFn: async () => {
       try {
-        const res = await api.get('/parcelas');
-        if (res.data && res.data.length > 0) return res.data;
-        return localParcelas;
+        const res = await api.get('/financeiro/parcelas', {
+          params: {
+            mes: filterPeriod.mes,
+            ano: filterPeriod.ano,
+            status: filterStatus,
+          },
+        });
+        if (res.data) return res.data;
+        return [];
       } catch {
-        return localParcelas;
+        return localParcelas.filter((p) => {
+          if (filterStatus !== 'TODAS' && p.status !== filterStatus) return false;
+          if (!p.dataVencimento) return true;
+          const parts = p.dataVencimento.split('-');
+          if (parts.length >= 2) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            return month === filterPeriod.mes && year === filterPeriod.ano;
+          }
+          return true;
+        });
       }
     },
   });
@@ -134,9 +158,11 @@ export default function Financeiro() {
     navigate('/vendas');
   };
 
-  const filteredParcelas = filterStatus === 'TODAS'
-    ? parcelas
-    : parcelas.filter((p) => p.status === filterStatus);
+  const MESES_NOME = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  const periodLabel = `${MESES_NOME[filterPeriod.mes - 1] || ''} ${filterPeriod.ano}`;
 
   const statusBadges = {
     PAGO: 'bg-emerald-50 text-emerald-600 border-emerald-200',
@@ -149,102 +175,129 @@ export default function Financeiro() {
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Controle Financeiro & Parcelas</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Controle Financeiro & Parcelas</h1>
+            {isFetching && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-600 animate-pulse border border-blue-100">
+                <svg className="w-3 h-3 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Carregando...
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 font-medium">Clique na linha da venda para visualizar os detalhes completos do pedido.</p>
         </div>
 
-        {/* Status Filters */}
-        <div className="bg-slate-200/70 p-1 rounded-xl flex flex-wrap gap-1 text-xs font-semibold">
-          {['TODAS', 'PENDENTE', 'PAGO', 'ATRASADO', 'CANCELADO'].map((st) => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`px-3 py-1.5 rounded-lg transition-all active:scale-95 ${
-                filterStatus === st ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <MonthFilter onChange={setFilterPeriod} />
+
+          {/* Status Filters */}
+          <div className="bg-slate-200/70 p-1 rounded-xl flex flex-wrap gap-1 text-xs font-semibold">
+            {['TODAS', 'PENDENTE', 'PAGO', 'ATRASADO', 'CANCELADO'].map((st) => (
+              <button
+                key={st}
+                onClick={() => setFilterStatus(st)}
+                className={`px-3 py-1.5 rounded-lg transition-all active:scale-95 ${
+                  filterStatus === st ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
-              <tr>
-                <th className="p-4">Parcela / Venda</th>
-                <th className="p-4">Cliente</th>
-                <th className="p-4">Vencimento</th>
-                <th className="p-4">Data Pagamento</th>
-                <th className="p-4">Valor</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredParcelas.map((p) => (
-                <tr
+        {parcelas.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-xl">
+              💳
+            </div>
+            <p className="text-sm font-semibold text-slate-700">Nenhuma parcela encontrada em {periodLabel}</p>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">Não foram encontradas parcelas financeiras para o período e status selecionados.</p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
+                  <tr>
+                    <th className="p-4">Parcela / Venda</th>
+                    <th className="p-4">Cliente</th>
+                    <th className="p-4">Vencimento</th>
+                    <th className="p-4">Data Pagamento</th>
+                    <th className="p-4">Valor</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {parcelas.map((p) => (
+                    <tr
+                      key={p.id}
+                      onClick={() => handleRowClick(p)}
+                      className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
+                    >
+                      <td className="p-4 font-mono font-bold text-slate-800 group-hover:text-blue-600">
+                        Parc. #{p.numeroSequencial} (Venda #{p.vendaId}) 🔍
+                      </td>
+                      <td className="p-4 font-bold text-slate-800">{p.clienteNome}</td>
+                      <td className="p-4 font-mono text-slate-600">{p.dataVencimento}</td>
+                      <td className="p-4 font-mono text-slate-400">{p.dataPagamento || '-'}</td>
+                      <td className="p-4 font-extrabold text-slate-800">{formatCurrencyBRL(p.valor)}</td>
+                      <td className="p-4">
+                        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border ${statusBadges[p.status]}`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        {p.status === 'PENDENTE' || p.status === 'ATRASADO' ? (
+                          <button
+                            onClick={(e) => handleBaixarParcela(p.id, e)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] active:scale-95 transition-all shadow-sm shadow-emerald-600/20"
+                          >
+                            Baixar (Marcar Pago)
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 font-medium">Concluído ✓</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View Cards */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {parcelas.map((p) => (
+                <div
                   key={p.id}
                   onClick={() => handleRowClick(p)}
-                  className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
+                  className="p-4 space-y-2 cursor-pointer hover:bg-slate-50"
                 >
-                  <td className="p-4 font-mono font-bold text-slate-800 group-hover:text-blue-600">
-                    Parc. #{p.numeroSequencial} (Venda #{p.vendaId}) 🔍
-                  </td>
-                  <td className="p-4 font-bold text-slate-800">{p.clienteNome}</td>
-                  <td className="p-4 font-mono text-slate-600">{p.dataVencimento}</td>
-                  <td className="p-4 font-mono text-slate-400">{p.dataPagamento || '-'}</td>
-                  <td className="p-4 font-extrabold text-slate-800">{formatCurrencyBRL(p.valor)}</td>
-                  <td className="p-4">
-                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border ${statusBadges[p.status]}`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-800">Parc. #{p.numeroSequencial} (Venda #{p.vendaId})</h3>
+                      <p className="text-xs text-slate-500">{p.clienteNome}</p>
+                    </div>
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${statusBadges[p.status]}`}>
                       {p.status}
                     </span>
-                  </td>
-                  <td className="p-4 text-right">
-                    {p.status === 'PENDENTE' || p.status === 'ATRASADO' ? (
-                      <button
-                        onClick={(e) => handleBaixarParcela(p.id, e)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] active:scale-95 transition-all shadow-sm shadow-emerald-600/20"
-                      >
-                        Baixar (Marcar Pago)
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-slate-400 font-medium">Concluído ✓</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
 
-        {/* Mobile View Cards */}
-        <div className="md:hidden divide-y divide-slate-100">
-          {filteredParcelas.map((p) => (
-            <div
-              key={p.id}
-              onClick={() => handleRowClick(p)}
-              className="p-4 space-y-2 cursor-pointer hover:bg-slate-50"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-bold text-sm text-slate-800">Parc. #{p.numeroSequencial} (Venda #{p.vendaId})</h3>
-                  <p className="text-xs text-slate-500">{p.clienteNome}</p>
+                  <div className="flex justify-between items-center text-xs pt-1">
+                    <span className="text-slate-400">Vence: {p.dataVencimento}</span>
+                    <span className="font-extrabold text-sm text-slate-800">{formatCurrencyBRL(p.valor)}</span>
+                  </div>
                 </div>
-                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${statusBadges[p.status]}`}>
-                  {p.status}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center text-xs pt-1">
-                <span className="text-slate-400">Vence: {p.dataVencimento}</span>
-                <span className="font-extrabold text-sm text-slate-800">{formatCurrencyBRL(p.valor)}</span>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Modal / Drawer de Detalhes da Venda */}

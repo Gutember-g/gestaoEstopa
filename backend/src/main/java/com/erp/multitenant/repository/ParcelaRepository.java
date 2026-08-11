@@ -18,4 +18,12 @@ public interface ParcelaRepository extends JpaRepository<Parcela, Long> {
 
     long countByTenantIdAndStatusAndDataVencimentoBefore(String tenantId, StatusParcela status, LocalDate data);
     long countByTenantIdAndStatusAndDataVencimento(String tenantId, StatusParcela status, LocalDate data);
+
+    @Query("SELECT p FROM Parcela p WHERE (p.tenantId = :tenantId OR :tenantId IS NULL) " +
+           "AND EXTRACT(MONTH FROM p.dataVencimento) = :mes " +
+           "AND EXTRACT(YEAR FROM p.dataVencimento) = :ano " +
+           "ORDER BY p.dataVencimento ASC")
+    java.util.List<Parcela> findByMesEAno(@Param("tenantId") String tenantId,
+                                          @Param("mes") Integer mes,
+                                          @Param("ano") Integer ano);
 }
