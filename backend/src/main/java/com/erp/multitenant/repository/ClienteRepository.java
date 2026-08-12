@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     List<Cliente> findByTenantId(String tenantId);
     Optional<Cliente> findByIdAndTenantId(Long id, String tenantId);
+    boolean existsByTenantIdAndCpfCnpj(String tenantId, String cpfCnpj);
 }

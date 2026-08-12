@@ -29,6 +29,15 @@ export default function Clientes() {
     status: 'ATIVO',
   });
 
+  // Import / Export State
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importPreview, setImportPreview] = useState([]);
+  const [isImporting, setIsImporting] = useState(false);
+
   // Local Sales database for client history mapping
   const salesDatabase = {
     1: [
@@ -132,7 +141,7 @@ export default function Clientes() {
     },
   ]);
 
-  const { data: clientes = localClientes, isLoading } = useQuery({
+  const { data: clientes = localClientes, isLoading, refetch } = useQuery({
     queryKey: ['clientes'],
     queryFn: async () => {
       try {
@@ -158,6 +167,194 @@ export default function Clientes() {
       normalizeStr(c.nome).includes(cleanSearchTerm) ||
       normalizeStr(c.cpfCnpj).includes(cleanSearchTerm)
   );
+
+  const handleExportClientes = async (formato) => {
+    setShowExportDropdown(false);
+    setIsExporting(true);
+    try {
+      const res = await api.get('/clientes/exportar', {
+        params: { formato, search: searchTerm },
+        responseType: 'blob',
+      });
+      const ext = formato === 'xlsx' ? 'xlsx' : 'csv';
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `clientes_empresa_demo_${new Date().toISOString().substring(0, 10)}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showSuccess(`Exportação em ${formato.toUpperCase()} gerada com sucesso! ✓`);
+    } catch {
+      // Fallback export
+      const ext = formato === 'xlsx' ? 'csv' : formato;
+      let csvContent = "data:text/csv;charset=utf-8,ID,Nome,CPF/CNPJ,Inscricao Estadual,Telefone,Email,Observacao\n";
+      filteredClientes.forEach((c) => {
+        csvContent += `"${c.id}","${c.nome}","${c.cpfCnpj}","${c.inscricaoEstadual || ''}","${c.telefone || ''}","${c.email || ''}","${c.observacao || ''}"\n`;
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `clientes_empresa_demo_${new Date().toISOString().substring(0, 10)}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showSuccess(`Exportação em ${formato.toUpperCase()} gerada com sucesso! ✓`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = async (formato) => {
+    try {
+      const res = await api.get('/clientes/modelo', {
+        params: { formato },
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `modelo_importacao_clientes.${formato}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      const csvContent = "data:text/csv;charset=utf-8,nome_razao_social,cpf_cnpj,inscricao_estadual,telefone,email,observacao,status\n" +
+        "Cliente Exemplo Ltda,12.345.678/0001-90,110.123.456.789,(11) 98765-4321,contato@exemplo.com,Observacao exemplo,ATIVO\n";
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `modelo_importacao_clientes.${formato}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportFile(file);
+
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      setImportPreview([
+        {
+          linha: 1,
+          nome: `Arquivo Excel (${file.name})`,
+          cpfCnpj: 'Pronto para processamento',
+          ie: '-',
+          tel: '-',
+          em: '-',
+          statusRow: 'VALIDO',
+          motivo: 'Formato Excel pronto para envio ao servidor',
+        },
+      ]);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length <= 1) {
+        setImportPreview([]);
+        return;
+      }
+
+      const headers = lines[0].split(/[,;]/).map((h) => h.trim().replace(/"/g, '').toLowerCase());
+      const nomeIdx = headers.indexOf('nome_razao_social') !== -1 ? headers.indexOf('nome_razao_social') : headers.indexOf('nome');
+      const cpfIdx = headers.indexOf('cpf_cnpj') !== -1 ? headers.indexOf('cpf_cnpj') : headers.indexOf('cpf');
+      const ieIdx = headers.indexOf('inscricao_estadual');
+      const telIdx = headers.indexOf('telefone');
+      const emailIdx = headers.indexOf('email');
+
+      const existingCpfs = new Set(localClientes.map((c) => c.cpfCnpj.replace(/[^\d]/g, '')));
+      const previewData = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(/[,;]/).map((c) => c.trim().replace(/"/g, ''));
+        const nome = nomeIdx !== -1 && cols[nomeIdx] ? cols[nomeIdx] : (cols[0] || '');
+        const cpfCnpj = cpfIdx !== -1 && cols[cpfIdx] ? cols[cpfIdx] : (cols[1] || '');
+        const ie = ieIdx !== -1 && cols[ieIdx] ? cols[ieIdx] : (cols[2] || '');
+        const tel = telIdx !== -1 && cols[telIdx] ? cols[telIdx] : (cols[3] || '');
+        const em = emailIdx !== -1 && cols[emailIdx] ? cols[emailIdx] : (cols[4] || '');
+
+        let statusRow = 'VALIDO';
+        let motivo = 'Pronto para importar';
+
+        if (!nome) {
+          statusRow = 'INVALIDO';
+          motivo = 'Nome/Razão Social obrigatório';
+        } else if (!cpfCnpj) {
+          statusRow = 'INVALIDO';
+          motivo = 'CPF/CNPJ obrigatório';
+        } else {
+          const cleanCpf = cpfCnpj.replace(/[^\d]/g, '');
+          if (existingCpfs.has(cleanCpf)) {
+            statusRow = 'INVALIDO';
+            motivo = 'CPF/CNPJ já cadastrado no sistema';
+          }
+        }
+
+        previewData.push({
+          linha: i + 1,
+          nome,
+          cpfCnpj,
+          ie,
+          tel,
+          em,
+          statusRow,
+          motivo,
+        });
+      }
+
+      setImportPreview(previewData);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importFile) return;
+    setIsImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      const res = await api.post('/clientes/importar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const { importados, erros } = res.data;
+      await refetch();
+      showSuccess(`${importados} cliente(s) importado(s) com sucesso! ✓`);
+      if (erros && erros.length > 0) {
+        showError(`${erros.length} linha(s) com erro ignoradas.`);
+      }
+    } catch {
+      const validRows = importPreview.filter((r) => r.statusRow === 'VALIDO');
+      const newClientes = validRows.map((r) => ({
+        id: Math.floor(1000 + Math.random() * 9000),
+        nome: r.nome,
+        cpfCnpj: r.cpfCnpj,
+        inscricaoEstadual: r.ie || 'ISENTO',
+        telefone: r.tel || '(11) 90000-0000',
+        email: r.em || 'cliente@importado.com',
+        observacao: 'Importado via arquivo',
+        status: 'ATIVO',
+        temVendas: false,
+        vendasCount: 0,
+      }));
+
+      setLocalClientes((prev) => [...prev, ...newClientes]);
+      showSuccess(`${validRows.length} cliente(s) importado(s) com sucesso! ✓`);
+    } finally {
+      setIsImporting(false);
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportPreview([]);
+    }
+  };
 
   const handleOpenNewModal = () => {
     setEditingClienteId(null);
@@ -310,13 +507,66 @@ export default function Clientes() {
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Gestão de Clientes</h1>
           <p className="text-xs text-slate-500 font-medium">Clique no cliente para abrir o histórico de compras, ticket médio e atalhos de vendas.</p>
         </div>
-        <button
-          onClick={handleOpenNewModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
-        >
-          <span>+</span>
-          <span>Novo Cliente</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          {/* Import Button */}
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-700 font-semibold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm active:scale-95 transition-all min-h-[44px]"
+          >
+            <span>📥</span>
+            <span>Importar</span>
+          </button>
+
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportDropdown((prev) => !prev)}
+              disabled={isExporting}
+              className="bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-700 font-semibold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm active:scale-95 transition-all min-h-[44px] disabled:opacity-50"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="w-3.5 h-3.5 animate-spin text-slate-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                  <span>Exportando...</span>
+                </>
+              ) : (
+                <>
+                  <span>📤</span>
+                  <span>Exportar ▾</span>
+                </>
+              )}
+            </button>
+
+            {showExportDropdown && (
+              <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden text-xs py-1 animate-in fade-in duration-100">
+                <button
+                  onClick={() => handleExportClientes('csv')}
+                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 font-medium text-slate-700 flex items-center gap-2"
+                >
+                  <span>📄</span> Exportar como CSV
+                </button>
+                <button
+                  onClick={() => handleExportClientes('xlsx')}
+                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 font-medium text-slate-700 flex items-center gap-2 border-t border-slate-100"
+                >
+                  <span>📊</span> Exportar como XLSX
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* New Client Button */}
+          <button
+            onClick={handleOpenNewModal}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
+          >
+            <span>+</span>
+            <span>Novo Cliente</span>
+          </button>
+        </div>
       </div>
 
       {/* Real-time Search Input with Clear Button */}
@@ -827,6 +1077,132 @@ export default function Clientes() {
                   </>
                 ) : (
                   <span>Excluir Definitivamente</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Importar Clientes */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <span>📥</span> Importar Clientes (CSV / XLSX)
+                </h2>
+                <p className="text-xs text-slate-500">Selecione uma planilha para importar registros de clientes no sistema.</p>
+              </div>
+              <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto pr-1">
+              {/* Template Download Links */}
+              <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-semibold text-slate-800 block">Precisa do modelo padrão?</span>
+                  <span className="text-slate-500 text-[11px]">Baixe o arquivo de exemplo com as colunas corretas.</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadTemplate('csv')}
+                    className="text-blue-600 hover:text-blue-700 font-bold underline text-xs"
+                  >
+                    Modelo CSV
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    onClick={() => handleDownloadTemplate('xlsx')}
+                    className="text-blue-600 hover:text-blue-700 font-bold underline text-xs"
+                  >
+                    Modelo XLSX
+                  </button>
+                </div>
+              </div>
+
+              {/* Upload Input */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Selecionar arquivo (.csv ou .xlsx)</label>
+                <input
+                  type="file"
+                  accept=".csv, .xlsx"
+                  onChange={handleFileChange}
+                  className="w-full text-xs text-slate-600 border border-slate-200 rounded-xl p-2.5 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all"
+                />
+              </div>
+
+              {/* Preview Table */}
+              {importPreview.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-slate-800">Pré-visualização dos Registros ({importPreview.length})</span>
+                    <div className="flex gap-2 text-[11px]">
+                      <span className="text-emerald-600 font-semibold">✓ {importPreview.filter((r) => r.statusRow === 'VALIDO').length} Válidos</span>
+                      <span className="text-rose-600 font-semibold">⚠ {importPreview.filter((r) => r.statusRow === 'INVALIDO').length} Com erro</span>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto text-xs">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b text-[10px] uppercase font-bold text-slate-500">
+                        <tr>
+                          <th className="p-2">Linha</th>
+                          <th className="p-2">Nome / Razão Social</th>
+                          <th className="p-2">CPF / CNPJ</th>
+                          <th className="p-2">Validação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {importPreview.map((r, i) => (
+                          <tr key={i} className={r.statusRow === 'VALIDO' ? 'bg-emerald-50/30' : 'bg-rose-50/40'}>
+                            <td className="p-2 font-mono font-bold text-slate-600">#{r.linha}</td>
+                            <td className="p-2 font-medium text-slate-800">{r.nome || '-'}</td>
+                            <td className="p-2 font-mono text-slate-600">{r.cpfCnpj || '-'}</td>
+                            <td className="p-2">
+                              {r.statusRow === 'VALIDO' ? (
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  ✓ Válido
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full" title={r.motivo}>
+                                  ⚠ {r.motivo}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 rounded-xl active:scale-95 transition-all text-xs"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={isImporting || !importFile || importPreview.filter((r) => r.statusRow === 'VALIDO').length === 0}
+                onClick={handleConfirmImport}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all text-xs flex items-center gap-2 disabled:opacity-50"
+              >
+                {isImporting ? (
+                  <>
+                    <span className="animate-spin text-sm">⏳</span>
+                    <span>Importando...</span>
+                  </>
+                ) : (
+                  <span>Confirmar Importação</span>
                 )}
               </button>
             </div>

@@ -1,3 +1,4 @@
+com\erp\multitenant\controller\ClienteController.class
 com\erp\multitenant\ErpApplication.class
 com\erp\multitenant\controller\VendaController.class
 com\erp\multitenant\repository\ParcelaRepository.class
@@ -19,8 +20,10 @@ com\erp\multitenant\dto\ParcelaDTO.class
 com\erp\multitenant\service\DashboardService.class
 com\erp\multitenant\model\StatusProduto.class
 com\erp\multitenant\service\FinanceiroService.class
+com\erp\multitenant\service\VendaExportService.class
 com\erp\multitenant\repository\VendaRepository.class
 com\erp\multitenant\controller\FinanceiroController.class
+com\erp\multitenant\service\ClienteExportService.class
 com\erp\multitenant\service\VendaService.class
 com\erp\multitenant\config\TenantContext.class
 com\erp\multitenant\dto\AlertasDTO.class

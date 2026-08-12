@@ -14,6 +14,10 @@ export default function Vendas() {
     ano: new Date().getFullYear(),
   });
 
+  // Export / PDF state
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
   // Modals state
   const [showModal, setShowModal] = useState(false);
   const [editingVendaId, setEditingVendaId] = useState(null);
@@ -395,6 +399,65 @@ export default function Vendas() {
   ];
   const periodLabel = `${MESES_NOME[filterPeriod.mes - 1] || ''} ${filterPeriod.ano}`;
 
+  const handleExportVendas = async (formato) => {
+    setShowExportDropdown(false);
+    if (formato === 'print') {
+      window.print();
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const res = await api.get('/vendas/exportar', {
+        params: {
+          mes: filterPeriod.mes,
+          ano: filterPeriod.ano,
+          formato,
+        },
+        responseType: 'blob',
+      });
+
+      const ext = formato;
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `vendas_empresa_demo_${filterPeriod.mes}_${filterPeriod.ano}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showSuccess(`Relatório de Vendas em ${formato.toUpperCase()} gerado com sucesso! ✓`);
+    } catch {
+      // Fallback CSV export
+      let csvContent = "data:text/csv;charset=utf-8,ID Venda,Cliente,Data Venda,Custo Total,Valor Total,Desconto,Lucro Liquido\n";
+      vendas.forEach((v) => {
+        csvContent += `"${v.id}","${v.clienteNome}","${v.dataVenda}","${v.custoTotal}","${v.valorTotal}","${v.desconto}","${v.lucroLiquido}"\n`;
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `vendas_empresa_demo_${filterPeriod.mes}_${filterPeriod.ano}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showSuccess(`Exportação de Vendas em CSV concluída! ✓`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadSingleVendaPdf = async (vendaId) => {
+    try {
+      const res = await api.get(`/vendas/${vendaId}/pdf`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      showSuccess(`PDF da Venda #${vendaId} gerado com sucesso! ✓`);
+    } catch {
+      showError(`Não foi possível gerar o PDF da venda #${vendaId}`);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
       {/* Header section */}
@@ -417,6 +480,60 @@ export default function Vendas() {
 
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <MonthFilter onChange={setFilterPeriod} />
+
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportDropdown((prev) => !prev)}
+              disabled={isExporting}
+              className="bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-700 font-semibold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm active:scale-95 transition-all min-h-[44px] disabled:opacity-50"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="w-3.5 h-3.5 animate-spin text-slate-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                  <span>Gerando...</span>
+                </>
+              ) : (
+                <>
+                  <span>📤</span>
+                  <span>Exportar ▾</span>
+                </>
+              )}
+            </button>
+
+            {showExportDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden text-xs py-1 animate-in fade-in duration-100">
+                <button
+                  onClick={() => handleExportVendas('csv')}
+                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 font-medium text-slate-700 flex items-center gap-2"
+                >
+                  <span>📄</span> Exportar como CSV
+                </button>
+                <button
+                  onClick={() => handleExportVendas('xlsx')}
+                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 font-medium text-slate-700 flex items-center gap-2 border-t border-slate-100"
+                >
+                  <span>📊</span> Exportar como Excel (XLSX)
+                </button>
+                <button
+                  onClick={() => handleExportVendas('pdf')}
+                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 font-medium text-slate-700 flex items-center gap-2 border-t border-slate-100"
+                >
+                  <span>📕</span> Relatório em PDF
+                </button>
+                <button
+                  onClick={() => handleExportVendas('print')}
+                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 font-medium text-slate-700 flex items-center gap-2 border-t border-slate-100 text-blue-600 font-semibold"
+                >
+                  <span>🖨️</span> Imprimir Relatório
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleOpenNewModal}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
@@ -480,6 +597,13 @@ export default function Vendas() {
                         </div>
                       </td>
                       <td className="p-4 text-right space-x-1">
+                        <button
+                          onClick={() => handleDownloadSingleVendaPdf(v.id)}
+                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
+                          title="Gerar PDF da Venda"
+                        >
+                          📄
+                        </button>
                         <button
                           onClick={() => handleDuplicateVenda(v)}
                           className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-indigo-600 transition-all active:scale-95"
