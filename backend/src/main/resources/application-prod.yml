@@ -25,7 +25,9 @@ logging:
 
 jwt:
   secret: ${JWT_SECRET_PROD}
-  expiration: 28800000
+  expiration: 900000 # 15 minutos (15 * 60 * 1000 ms)
+  issuer: ${JWT_ISSUER:gestao-estopa-api}
+  audience: ${JWT_AUDIENCE:gestao-estopa-web}
 
 cors:
   allowed-origins: ${ALLOWED_ORIGINS:https://app.seudominio.com}

@@ -12,3 +12,6 @@ server:
 jwt:
   header: Authorization
   prefix: "Bearer "
+  issuer: gestao-estopa-api
+  audience: gestao-estopa-web
+

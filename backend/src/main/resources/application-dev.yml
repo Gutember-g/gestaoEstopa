@@ -27,7 +27,9 @@ logging:
 
 jwt:
   secret: dev_secret_key_super_segura_para_desenvolvimento_local_123456789
-  expiration: 86400000
+  expiration: 900000 # 15 minutos (15 * 60 * 1000 ms)
+  issuer: gestao-estopa-api
+  audience: gestao-estopa-web
 
 cors:
   allowed-origins: "http://localhost:5173"
