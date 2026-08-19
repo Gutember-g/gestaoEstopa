@@ -102,10 +102,6 @@ api.interceptors.response.use(
       processQueue(refreshError, null);
       clearAccessToken();
 
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

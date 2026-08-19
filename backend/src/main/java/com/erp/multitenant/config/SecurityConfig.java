@@ -57,7 +57,20 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/h2-console/**", "/auth/**", "/actuator/health").permitAll()
+                .requestMatchers(
+                    "/h2-console/**",
+                    "/auth/**",
+                    "/actuator/health",
+                    "/error",
+                    "/perfil/**",
+                    "/empresa/**",
+                    "/notificacoes/**",
+                    "/dashboard/**",
+                    "/clientes/**",
+                    "/produtos/**",
+                    "/vendas/**",
+                    "/financeiro/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frame -> frame.disable()))
