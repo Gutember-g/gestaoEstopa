@@ -103,15 +103,16 @@ export default function Vendas() {
   ]);
 
   // Fetch Sales list from API with fallback filtering by period
-  const { data: vendas = [], isFetching } = useQuery({
+  const { data: vendasRaw = [], isFetching } = useQuery({
     queryKey: ['vendas', filterPeriod.mes, filterPeriod.ano],
     queryFn: async () => {
       try {
         const res = await api.get('/vendas', {
           params: { mes: filterPeriod.mes, ano: filterPeriod.ano }
         });
-        if (res.data) return res.data;
-        return [];
+        if (Array.isArray(res.data)) return res.data;
+        if (res.data && Array.isArray(res.data.content)) return res.data.content;
+        return localVendas;
       } catch {
         return localVendas.filter((v) => {
           if (!v.dataVenda) return true;
@@ -126,6 +127,10 @@ export default function Vendas() {
       }
     },
   });
+
+  const vendas = Array.isArray(vendasRaw)
+    ? vendasRaw
+    : (vendasRaw && Array.isArray(vendasRaw.content) ? vendasRaw.content : []);
 
   // Calculate actual numeric values for financial summary
   const descontoVal = parseCurrencyToNumber(descontoFormatted);

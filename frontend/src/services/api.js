@@ -2,38 +2,38 @@ import axios from 'axios';
 import { getAccessToken, setAccessToken, clearAccessToken } from './authStore';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
-  timeout: 10000,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: true, // Para envio automático dos cookies HTTP-Only (ex: refreshToken)
 });
 
+// Fila de requisições pendentes enquanto o token está sendo renovado
 let isRefreshing = false;
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
+  failedQueue.forEach((promise) => {
     if (error) {
-      prom.reject(error);
+      promise.reject(error);
     } else {
-      prom.resolve(token);
+      promise.resolve(token);
     }
   });
-
   failedQueue = [];
 };
 
+// Interceptor de Requisição: Anexa o Bearer token JWT e o Tenant ID (fixo para o tenant ativo)
 api.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
-    const tenantId = localStorage.getItem('tenantId') || 'empresa_demo';
-
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Single-tenant UI: usa tenant ativo salvo no localStorage ou default 'empresa_demo'
+    const tenantId = localStorage.getItem('tenantId') || 'empresa_demo';
     if (tenantId) {
       config.headers['X-Tenant-ID'] = tenantId;
     }
@@ -43,6 +43,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Interceptor de Resposta: Tratamento de renovação automática do token JWT (Silent Refresh em 401)
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -78,18 +79,19 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      // Faz chamada de refresh enviando cookie HttpOnly com credentials e cabeçalho anti-CSRF
-      const response = await axios.post(
-        `${api.defaults.baseURL}/auth/refresh`,
+      // Tenta renovar o token via refreshToken armazenado no Cookie HTTP-Only
+      const refreshResponse = await axios.post(
+        '/api/auth/refresh',
         {},
         {
           withCredentials: true,
-          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          headers: {
+            'X-Tenant-ID': localStorage.getItem('tenantId') || 'empresa_demo',
+          },
         }
       );
 
-
-      const { accessToken } = response.data;
+      const { accessToken } = refreshResponse.data;
       setAccessToken(accessToken);
 
       // Notifica e resolve toda a fila de requisições pendentes com o novo token
@@ -102,10 +104,6 @@ api.interceptors.response.use(
       processQueue(refreshError, null);
       clearAccessToken();
 
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
@@ -114,5 +112,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-
-

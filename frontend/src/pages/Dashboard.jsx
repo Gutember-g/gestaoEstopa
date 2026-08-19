@@ -361,49 +361,57 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Bar Chart Container */}
-        <div className="pt-4 pb-2">
-          <div className="h-44 flex items-end justify-between gap-1.5 sm:gap-3 px-2">
-            {[...monthsList].reverse().map((m) => {
-              const originalIndex = monthsList.findIndex((item) => item.key === m.key);
-              const isSelected = originalIndex === selectedMonthIndex;
-              const heightPct = Math.max(12, (m.faturamento / maxChartVal) * 100);
+        {/* Bar Chart Container with Mobile Smooth Horizontal Scroll */}
+        <div className="relative pt-4 pb-2">
+          {/* Scroll cue hint for mobile screens (<768px) */}
+          <div className="md:hidden flex items-center justify-end gap-1 text-[10px] text-slate-400 mb-1.5 font-medium px-1">
+            <span>Deslize para ver o histórico</span>
+            <span>➔</span>
+          </div>
 
-              return (
-                <div
-                  key={m.key}
-                  onClick={() => setSelectedMonthIndex(originalIndex)}
-                  className="flex-1 flex flex-col items-center gap-2 group cursor-pointer"
-                  title={`${m.label}: ${formatCurrency(m.faturamento)} (Clique para filtrar)`}
-                >
-                  {/* Hover tooltip value */}
-                  <span className={`text-[10px] font-mono font-bold transition-all ${
-                    isSelected ? 'text-blue-600 scale-110' : 'text-slate-400 group-hover:text-slate-700'
-                  }`}>
-                    R${Math.round(m.faturamento)}
-                  </span>
+          <div className="overflow-x-auto overflow-y-hidden max-w-full pb-2 touch-pan-x">
+            <div className="h-44 flex items-end justify-between gap-2 sm:gap-3 px-2 min-w-[620px] md:min-w-0">
+              {[...monthsList].reverse().map((m) => {
+                const originalIndex = monthsList.findIndex((item) => item.key === m.key);
+                const isSelected = originalIndex === selectedMonthIndex;
+                const heightPct = Math.max(12, (m.faturamento / maxChartVal) * 100);
 
-                  {/* Animated Bar */}
-                  <div className="w-full bg-slate-100 rounded-t-lg overflow-hidden flex items-end h-32">
-                    <div
-                      style={{ height: `${heightPct}%` }}
-                      className={`w-full rounded-t-lg transition-all duration-300 ${
-                        isSelected
-                          ? 'bg-gradient-to-t from-blue-600 to-indigo-500 ring-2 ring-blue-500/50 shadow-md'
-                          : 'bg-slate-300 group-hover:bg-slate-400'
-                      }`}
-                    ></div>
+                return (
+                  <div
+                    key={m.key}
+                    onClick={() => setSelectedMonthIndex(originalIndex)}
+                    className="flex-1 min-w-[42px] md:min-w-0 flex flex-col items-center gap-2 group cursor-pointer"
+                    title={`${m.label}: ${formatCurrency(m.faturamento)} (Clique para filtrar)`}
+                  >
+                    {/* Hover tooltip value */}
+                    <span className={`text-[10px] font-mono font-bold transition-all ${
+                      isSelected ? 'text-blue-600 scale-110' : 'text-slate-400 group-hover:text-slate-700'
+                    }`}>
+                      R${Math.round(m.faturamento)}
+                    </span>
+
+                    {/* Animated Bar */}
+                    <div className="w-full bg-slate-100 rounded-t-lg overflow-hidden flex items-end h-32">
+                      <div
+                        style={{ height: `${heightPct}%` }}
+                        className={`w-full rounded-t-lg transition-all duration-300 ${
+                          isSelected
+                            ? 'bg-gradient-to-t from-blue-600 to-indigo-500 ring-2 ring-blue-500/50 shadow-md'
+                            : 'bg-slate-300 group-hover:bg-slate-400'
+                        }`}
+                      ></div>
+                    </div>
+
+                    {/* X-axis Label */}
+                    <span className={`text-[10px] font-semibold transition-colors whitespace-nowrap ${
+                      isSelected ? 'text-blue-600 font-extrabold' : 'text-slate-500'
+                    }`}>
+                      {m.shortLabel}
+                    </span>
                   </div>
-
-                  {/* X-axis Label */}
-                  <span className={`text-[10px] font-semibold transition-colors ${
-                    isSelected ? 'text-blue-600 font-extrabold' : 'text-slate-500'
-                  }`}>
-                    {m.shortLabel}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

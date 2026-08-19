@@ -141,18 +141,23 @@ export default function Clientes() {
     },
   ]);
 
-  const { data: clientes = localClientes, isLoading, refetch } = useQuery({
+  const { data: clientesRaw = localClientes, isLoading, refetch } = useQuery({
     queryKey: ['clientes'],
     queryFn: async () => {
       try {
         const res = await api.get('/clientes');
-        if (res.data && res.data.length > 0) return res.data;
+        if (Array.isArray(res.data) && res.data.length > 0) return res.data;
+        if (res.data && Array.isArray(res.data.content) && res.data.content.length > 0) return res.data.content;
         return localClientes;
       } catch {
         return localClientes;
       }
     },
   });
+
+  const clientes = Array.isArray(clientesRaw)
+    ? clientesRaw
+    : (clientesRaw && Array.isArray(clientesRaw.content) ? clientesRaw.content : localClientes);
 
   // Resilient search function (ignores case, dots, slashes, dashes, spaces)
   const normalizeStr = (str) =>

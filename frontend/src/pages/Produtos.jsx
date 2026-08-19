@@ -30,18 +30,23 @@ export default function Produtos() {
     { id: 4, sku: 'SKU-004', nome: 'Retalho Industrial Fardo 5kg', precoCusto: 22.00, precoVenda: 35.00, margemLucro: 59.09, status: 'INATIVO', temVendas: false },
   ]);
 
-  const { data: produtos = localProdutos, isLoading } = useQuery({
+  const { data: produtosRaw = localProdutos, isLoading } = useQuery({
     queryKey: ['produtos'],
     queryFn: async () => {
       try {
         const res = await api.get('/produtos');
-        if (res.data && res.data.length > 0) return res.data;
+        if (Array.isArray(res.data) && res.data.length > 0) return res.data;
+        if (res.data && Array.isArray(res.data.content) && res.data.content.length > 0) return res.data.content;
         return localProdutos;
       } catch {
         return localProdutos;
       }
     },
   });
+
+  const produtos = Array.isArray(produtosRaw)
+    ? produtosRaw
+    : (produtosRaw && Array.isArray(produtosRaw.content) ? produtosRaw.content : localProdutos);
 
   const handleOpenNewModal = () => {
     setEditingProdutoId(null);

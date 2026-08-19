@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
@@ -6,6 +6,25 @@ import Sidebar from './Sidebar';
 export default function Layout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('geral');
+
+  // Load and apply saved theme on startup
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('flow_theme') || 'claro';
+    const root = document.documentElement;
+
+    if (savedTheme === 'escuro') {
+      root.classList.add('dark');
+    } else if (savedTheme === 'claro') {
+      root.classList.remove('dark');
+    } else if (savedTheme === 'auto') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+  }, []);
 
   const navItems = [
     { label: 'Home', path: '/dashboard', icon: '🏠' },
@@ -16,7 +35,7 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F3F5F9] text-slate-800">
+    <div className="min-h-screen flex flex-col bg-[#F3F5F9] dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200">
       {/* Top Header h-14 */}
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
 

@@ -85,7 +85,7 @@ export default function Financeiro() {
     },
   ]);
 
-  const { data: parcelas = [], isFetching } = useQuery({
+  const { data: parcelasRaw = [], isFetching } = useQuery({
     queryKey: ['parcelas', filterPeriod.mes, filterPeriod.ano, filterStatus],
     queryFn: async () => {
       try {
@@ -96,8 +96,9 @@ export default function Financeiro() {
             status: filterStatus,
           },
         });
-        if (res.data) return res.data;
-        return [];
+        if (Array.isArray(res.data)) return res.data;
+        if (res.data && Array.isArray(res.data.content)) return res.data.content;
+        return localParcelas;
       } catch {
         return localParcelas.filter((p) => {
           if (filterStatus !== 'TODAS' && p.status !== filterStatus) return false;
@@ -113,6 +114,10 @@ export default function Financeiro() {
       }
     },
   });
+
+  const parcelas = Array.isArray(parcelasRaw)
+    ? parcelasRaw
+    : (parcelasRaw && Array.isArray(parcelasRaw.content) ? parcelasRaw.content : localParcelas);
 
   const handleBaixarParcela = (parcelaId, e) => {
     if (e) e.stopPropagation();
