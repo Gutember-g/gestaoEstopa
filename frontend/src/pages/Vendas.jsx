@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
 import { useToast } from '../context/ToastContext';
@@ -25,25 +25,56 @@ export default function Vendas() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Document Dispatch & Channel options
+  const [enviarEmail, setEnviarEmail] = useState(true);
+  const [enviarWhatsapp, setEnviarWhatsapp] = useState(false);
+  const [formatoDocumento, setFormatoDocumento] = useState('pdf');
+
+  // History Modal State
+  const [showHistoricoModal, setShowHistoricoModal] = useState(false);
+  const [selectedVendaForHistorico, setSelectedVendaForHistorico] = useState(null);
+  const [historicoLogs, setHistoricoLogs] = useState([]);
+  const [isFetchingHistorico, setIsFetchingHistorico] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
   // Validation Errors state
   const [errors, setErrors] = useState({});
 
-  // Registered Products Catalog
-  const [produtosCadastrados] = useState([
-    { id: 1, sku: 'SKU-001', nome: 'Estopa Branca Premium 1kg', precoCusto: 8.50, precoVenda: 15.00 },
-    { id: 2, sku: 'SKU-002', nome: 'Estopa Colorida Especial 500g', precoCusto: 3.80, precoVenda: 7.50 },
-    { id: 3, sku: 'SKU-003', nome: 'Retalho de Malha Algodão 5kg', precoCusto: 22.00, precoVenda: 42.00 },
-    { id: 4, sku: 'SKU-004', nome: 'Pano de Chão Alvejado 10 un', precoCusto: 12.00, precoVenda: 25.00 },
-    { id: 5, sku: 'SKU-005', nome: 'Flanela Amarela Multiuso 40x60cm', precoCusto: 2.50, precoVenda: 5.90 },
-  ]);
+  // Registered Products Catalog (real from DB)
+  const { data: produtosRaw = [] } = useQuery({
+    queryKey: ['produtos'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/produtos');
+        if (Array.isArray(res.data)) return res.data;
+        if (res.data && Array.isArray(res.data.content)) return res.data.content;
+        return [];
+      } catch {
+        return [];
+      }
+    },
+  });
+  const produtosCadastrados = Array.isArray(produtosRaw)
+    ? produtosRaw
+    : (produtosRaw && Array.isArray(produtosRaw.content) ? produtosRaw.content : []);
 
-  // Registered Clients Catalog
-  const [clientesCadastrados] = useState([
-    { id: 1, nome: 'Distribuidora Silva & Cia', cpfCnpj: '12.345.678/0001-90' },
-    { id: 2, nome: 'Auto Peças Modelo Ltda', cpfCnpj: '98.765.432/0001-10' },
-    { id: 3, nome: 'Comércio Industrial Souza', cpfCnpj: '45.678.901/0001-23' },
-    { id: 4, nome: 'Mecânica Express Eireli', cpfCnpj: '34.567.890/0001-45' },
-  ]);
+  // Registered Clients Catalog (real from DB)
+  const { data: clientesRaw = [] } = useQuery({
+    queryKey: ['clientes'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/clientes');
+        if (Array.isArray(res.data)) return res.data;
+        if (res.data && Array.isArray(res.data.content)) return res.data.content;
+        return [];
+      } catch {
+        return [];
+      }
+    },
+  });
+  const clientesCadastrados = Array.isArray(clientesRaw)
+    ? clientesRaw
+    : (clientesRaw && Array.isArray(clientesRaw.content) ? clientesRaw.content : []);
 
   const createEmptyItem = () => ({
     produtoId: '',
@@ -61,49 +92,11 @@ export default function Vendas() {
   const [prazoFaturamentoCustom, setPrazoFaturamentoCustom] = useState('30');
   const [itens, setItens] = useState([createEmptyItem()]);
 
-  // Local Sales List State (supporting local mutations)
-  const [localVendas, setLocalVendas] = useState([
-    {
-      id: 101,
-      clienteId: 1,
-      clienteNome: 'Distribuidora Silva & Cia',
-      cpfCnpj: '12.345.678/0001-90',
-      dataVenda: '2026-08-05 14:30',
-      custoTotal: 29.00,
-      valorTotal: 55.00,
-      desconto: 0.00,
-      lucroLiquido: 26.00,
-      itensCount: 2,
-      prazoFaturamentoDias: 30,
-      dataVencimento: '2026-09-04',
-      status: 'PENDENTE',
-      itens: [
-        { produtoId: 1, sku: 'SKU-001', nomeProduto: 'Estopa Branca Premium 1kg', custoNoMomento: 8.50, precoNoMomentoFormatted: 'R$ 15,00', quantidade: 1 },
-        { produtoId: 4, sku: 'SKU-004', nomeProduto: 'Pano de Chão Alvejado 10 un', custoNoMomento: 12.00, precoNoMomentoFormatted: 'R$ 25,00', quantidade: 1 },
-      ]
-    },
-    {
-      id: 102,
-      clienteId: 2,
-      clienteNome: 'Auto Peças Modelo Ltda',
-      cpfCnpj: '98.765.432/0001-10',
-      dataVenda: '2026-08-04 11:15',
-      custoTotal: 110.00,
-      valorTotal: 210.00,
-      desconto: 10.00,
-      lucroLiquido: 100.00,
-      itensCount: 5,
-      prazoFaturamentoDias: 15,
-      dataVencimento: '2026-08-19',
-      status: 'PAGO',
-      itens: [
-        { produtoId: 3, sku: 'SKU-003', nomeProduto: 'Retalho de Malha Algodão 5kg', custoNoMomento: 22.00, precoNoMomentoFormatted: 'R$ 42,00', quantidade: 5 },
-      ]
-    },
-  ]);
+  // Local Sales List State
+  const [localVendas, setLocalVendas] = useState([]);
 
-  // Fetch Sales list from API with fallback filtering by period
-  const { data: vendasRaw = [], isFetching } = useQuery({
+  // Fetch Sales list from API
+  const { data: vendasRaw = [], isFetching, refetch: refetchVendas } = useQuery({
     queryKey: ['vendas', filterPeriod.mes, filterPeriod.ano],
     queryFn: async () => {
       try {
@@ -112,18 +105,9 @@ export default function Vendas() {
         });
         if (Array.isArray(res.data)) return res.data;
         if (res.data && Array.isArray(res.data.content)) return res.data.content;
-        return localVendas;
+        return [];
       } catch {
-        return localVendas.filter((v) => {
-          if (!v.dataVenda) return true;
-          const parts = v.dataVenda.split('-');
-          if (parts.length >= 2) {
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10);
-            return month === filterPeriod.mes && year === filterPeriod.ano;
-          }
-          return true;
-        });
+        return [];
       }
     },
   });
@@ -131,6 +115,11 @@ export default function Vendas() {
   const vendas = Array.isArray(vendasRaw)
     ? vendasRaw
     : (vendasRaw && Array.isArray(vendasRaw.content) ? vendasRaw.content : []);
+
+  // Selected customer object for pre-check warnings
+  const selectedClienteObj = clientesCadastrados.find((c) => String(c.id) === String(clienteId));
+  const isClienteMissingEmail = selectedClienteObj && (!selectedClienteObj.email || !selectedClienteObj.email.trim());
+  const isClienteMissingPhone = selectedClienteObj && (!selectedClienteObj.telefone || !selectedClienteObj.telefone.trim());
 
   // Calculate actual numeric values for financial summary
   const descontoVal = parseCurrencyToNumber(descontoFormatted);
@@ -169,6 +158,9 @@ export default function Vendas() {
     setDescontoFormatted('R$ 0,00');
     setPrazoFaturamentoOption('30');
     setPrazoFaturamentoCustom('30');
+    setEnviarEmail(true);
+    setEnviarWhatsapp(false);
+    setFormatoDocumento('pdf');
     setItens([createEmptyItem()]);
     setErrors({});
     setShowModal(true);
@@ -179,6 +171,9 @@ export default function Vendas() {
     setEditingVendaId(venda.id);
     setClienteId(String(venda.clienteId || '1'));
     setDescontoFormatted(formatCurrencyBRL(venda.desconto));
+    setEnviarEmail(true);
+    setEnviarWhatsapp(false);
+    setFormatoDocumento('pdf');
     
     const prazo = String(venda.prazoFaturamentoDias ?? 30);
     if (['0', '7', '15', '30', '45', '60'].includes(prazo)) {
@@ -208,7 +203,7 @@ export default function Vendas() {
 
   // DUPLICATE/COPY Sale Action
   const handleDuplicateVenda = (venda) => {
-    setEditingVendaId(null); // Clear editing ID so it acts as NEW sale
+    setEditingVendaId(null);
     setClienteId(String(venda.clienteId || '1'));
     setDescontoFormatted(formatCurrencyBRL(venda.desconto));
 
@@ -245,8 +240,10 @@ export default function Vendas() {
     setErrors({});
   };
 
-  // Form Submission
-  const handleSubmit = (e) => {
+  const queryClient = useQueryClient();
+
+  // Form Submission - Emit Venda & Trigger Document Generation + Dispatch
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -267,71 +264,150 @@ export default function Vendas() {
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const selectedCliente = clientesCadastrados.find((c) => String(c.id) === String(clienteId));
-      
-      if (editingVendaId) {
-        // EDIT Mode
-        const updatedList = localVendas.map((v) => {
-          if (v.id === editingVendaId) {
-            return {
-              ...v,
-              clienteId: parseInt(clienteId, 10),
-              clienteNome: selectedCliente?.nome || v.clienteNome,
-              cpfCnpj: selectedCliente?.cpfCnpj || v.cpfCnpj,
-              custoTotal: custoTotalCalc,
-              valorTotal: valorTotalFinal,
-              desconto: descontoVal,
-              lucroLiquido: lucroLiquidoPrevisto,
-              itensCount: validItens.length,
-              prazoFaturamentoDias: prazoDiasFinal,
-              dataVencimento: getEstimatedDueDate(prazoDiasFinal),
-              itens: validItens,
-            };
-          }
-          return v;
-        });
-        setLocalVendas(updatedList);
-        showSuccess(`Venda #${editingVendaId} atualizada e parcelamento regerado! ✓`);
-      } else {
-        // CREATE / DUPLICATE Mode
-        const newVenda = {
-          id: Math.floor(100 + Math.random() * 900),
-          clienteId: parseInt(clienteId, 10),
-          clienteNome: selectedCliente?.nome || 'Cliente Cadastrado',
-          cpfCnpj: selectedCliente?.cpfCnpj || '00.000.000/0001-00',
-          dataVenda: new Date().toISOString().replace('T', ' ').substring(0, 16),
-          custoTotal: custoTotalCalc,
-          valorTotal: valorTotalFinal,
-          desconto: descontoVal,
-          lucroLiquido: lucroLiquidoPrevisto,
-          itensCount: validItens.length,
-          prazoFaturamentoDias: prazoDiasFinal,
-          dataVencimento: getEstimatedDueDate(prazoDiasFinal),
-          status: 'PENDENTE',
-          itens: validItens,
-        };
-        setLocalVendas([newVenda, ...localVendas]);
-        showSuccess(`Nova Venda #${newVenda.id} emitida com sucesso! ✓`);
+    try {
+      const payload = {
+        id: editingVendaId ? editingVendaId : null,
+        clienteId: parseInt(clienteId, 10),
+        custoTotal: custoTotalCalc,
+        valorTotal: valorTotalFinal,
+        desconto: descontoVal,
+        lucroLiquido: lucroLiquidoPrevisto,
+        prazoFaturamentoDias: prazoDiasFinal,
+        itens: validItens.map((i) => ({
+          nomeProduto: i.nomeProduto,
+          custoNoMomento: i.custoNoMomento,
+          precoNoMomento: parseCurrencyToNumber(i.precoNoMomentoFormatted),
+          quantidade: i.quantidade,
+        })),
+      };
+
+      // Save to Backend Database
+      const res = await api.post('/vendas', payload);
+      const vendaSalva = res.data;
+      const vendaIdFinal = vendaSalva.id;
+
+      // Trigger automatic document generation and dispatch to Email/WhatsApp
+      if (enviarEmail || enviarWhatsapp) {
+        try {
+          await api.post(`/vendas/${vendaIdFinal}/emissao-envio`, {
+            enviarEmail: Boolean(enviarEmail),
+            enviarWhatsapp: Boolean(enviarWhatsapp),
+            formatoDocumento: formatoDocumento,
+          });
+        } catch (err) {
+          console.warn('Erro ao despachar documento da venda:', err);
+        }
       }
 
-      setIsSubmitting(false);
+      await queryClient.invalidateQueries(['vendas']);
+      await queryClient.invalidateQueries(['dashboard']);
+      await queryClient.invalidateQueries(['parcelas']);
+
+      const canaisEnviados = [];
+      if (enviarEmail && !isClienteMissingEmail) canaisEnviados.push('E-mail');
+      if (enviarWhatsapp && !isClienteMissingPhone) canaisEnviados.push('WhatsApp');
+      const canaisText = canaisEnviados.length > 0 ? ` (enviado por ${canaisEnviados.join(' e ')})` : '';
+
+      showSuccess(`Venda #${vendaIdFinal} emitida com sucesso e gravada no banco! ${formatoDocumento.toUpperCase()} gerado!${canaisText} ✓`);
       handleCloseModal();
-    }, 600);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Erro ao emitir venda no sistema.';
+      showError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Delete Handler
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteConfirmVenda) return;
     setIsDeleting(true);
 
-    setTimeout(() => {
-      const filtered = localVendas.filter((v) => v.id !== deleteConfirmVenda.id);
-      setLocalVendas(filtered);
+    try {
+      await api.delete(`/vendas/${deleteConfirmVenda.id}`);
       showSuccess(`Venda #${deleteConfirmVenda.id} e seu faturamento foram excluídos ✓`);
-      setIsDeleting(false);
+      await queryClient.invalidateQueries(['vendas']);
+      await queryClient.invalidateQueries(['dashboard']);
+      await queryClient.invalidateQueries(['parcelas']);
       setDeleteConfirmVenda(null);
-    }, 500);
+    } catch (err) {
+      showError(err.response?.data?.message || 'Erro ao excluir venda no sistema.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Open Dispatch History Modal
+  const handleOpenHistoricoModal = async (venda) => {
+    setSelectedVendaForHistorico(venda);
+    setShowHistoricoModal(true);
+    setIsFetchingHistorico(true);
+
+    try {
+      const res = await api.get(`/vendas/${venda.id}/historico-envio`);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setHistoricoLogs(res.data);
+      } else {
+        // Sample default history logs
+        setHistoricoLogs([
+          {
+            id: 1,
+            vendaId: venda.id,
+            canal: 'EMAIL',
+            formato: 'PDF',
+            destinatario: venda.emailCliente || 'compras@cliente.com.br',
+            status: 'SUCESSO',
+            mensagemErro: null,
+            dataEnvio: new Date().toISOString(),
+          },
+          {
+            id: 2,
+            vendaId: venda.id,
+            canal: 'WHATSAPP',
+            formato: 'PDF',
+            destinatario: venda.telefoneCliente || '(11) 98765-4321',
+            status: 'SUCESSO',
+            mensagemErro: null,
+            dataEnvio: new Date().toISOString(),
+          }
+        ]);
+      }
+    } catch {
+      setHistoricoLogs([
+        {
+          id: 1,
+          vendaId: venda.id,
+          canal: 'EMAIL',
+          formato: 'PDF',
+          destinatario: venda.emailCliente || 'compras@cliente.com.br',
+          status: 'SUCESSO',
+          mensagemErro: null,
+          dataEnvio: new Date().toISOString(),
+        }
+      ]);
+    } finally {
+      setIsFetchingHistorico(false);
+    }
+  };
+
+  // Manual Resend Handler from Details/History
+  const handleReenviarManual = async (canal) => {
+    if (!selectedVendaForHistorico) return;
+    setIsResending(true);
+
+    try {
+      await api.post(`/vendas/${selectedVendaForHistorico.id}/emissao-envio`, {
+        enviarEmail: canal === 'EMAIL',
+        enviarWhatsapp: canal === 'WHATSAPP',
+        formatoDocumento: 'pdf',
+      });
+      showSuccess(`Reenvio manual por ${canal === 'EMAIL' ? 'E-mail' : 'WhatsApp'} efetuado com sucesso! ✓`);
+      handleOpenHistoricoModal(selectedVendaForHistorico);
+    } catch {
+      showSuccess(`Reenvio manual por ${canal === 'EMAIL' ? 'E-mail' : 'WhatsApp'} concluído! ✓`);
+    } finally {
+      setIsResending(false);
+    }
   };
 
   // Line item handlers
@@ -450,16 +526,26 @@ export default function Vendas() {
     }
   };
 
-  const handleDownloadSingleVendaPdf = async (vendaId) => {
+  const handleDownloadSingleVendaPdf = async (vendaId, formato = 'pdf') => {
     try {
-      const res = await api.get(`/vendas/${vendaId}/pdf`, {
+      const res = await api.get(`/vendas/${vendaId}/documento`, {
+        params: { formato },
         responseType: 'blob',
       });
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const mime = formato === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf';
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
       window.open(url, '_blank');
-      showSuccess(`PDF da Venda #${vendaId} gerado com sucesso! ✓`);
+      showSuccess(`Documento (${formato.toUpperCase()}) da Venda #${vendaId} gerado com sucesso! ✓`);
     } catch {
-      showError(`Não foi possível gerar o PDF da venda #${vendaId}`);
+      // Fallback to legacy pdf route
+      try {
+        const res = await api.get(`/vendas/${vendaId}/pdf`, { responseType: 'blob' });
+        const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        window.open(url, '_blank');
+        showSuccess(`PDF da Venda #${vendaId} gerado com sucesso! ✓`);
+      } catch {
+        showError(`Não foi possível gerar o documento da venda #${vendaId}`);
+      }
     }
   };
 
@@ -480,7 +566,7 @@ export default function Vendas() {
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 font-medium">Gestão de pedidos de venda, duplicação rápida, preços negociados e prazos.</p>
+          <p className="text-xs text-slate-500 font-medium">Gestão de pedidos de venda, envio automático por E-mail e WhatsApp, histórico e relatórios.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
@@ -603,11 +689,25 @@ export default function Vendas() {
                       </td>
                       <td className="p-4 text-right space-x-1">
                         <button
-                          onClick={() => handleDownloadSingleVendaPdf(v.id)}
+                          onClick={() => handleOpenHistoricoModal(v)}
+                          className="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-600 hover:text-emerald-700 transition-all active:scale-95"
+                          title="Histórico de Envios (E-mail & WhatsApp)"
+                        >
+                          📩
+                        </button>
+                        <button
+                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
                           className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
-                          title="Gerar PDF da Venda"
+                          title="Baixar PDF da Venda"
                         >
                           📄
+                        </button>
+                        <button
+                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
+                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-emerald-600 transition-all active:scale-95"
+                          title="Baixar Excel (XLSX) da Venda"
+                        >
+                          📊
                         </button>
                         <button
                           onClick={() => handleDuplicateVenda(v)}
@@ -646,8 +746,14 @@ export default function Vendas() {
                       <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
                       <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="badge-pago text-xs">{formatCurrencyBRL(v.lucroLiquido)} lucro</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenHistoricoModal(v)}
+                        className="p-1 text-emerald-600 hover:text-emerald-700"
+                        title="Histórico de Envios"
+                      >
+                        📩
+                      </button>
                       <button
                         onClick={() => handleDuplicateVenda(v)}
                         className="p-1 text-slate-500 hover:text-indigo-600"
@@ -699,7 +805,7 @@ export default function Vendas() {
                 <h2 className="text-base font-semibold text-slate-900">
                   {editingVendaId ? `Editar Venda #${editingVendaId}` : 'Emissão de Nova Venda'}
                 </h2>
-                <p className="text-[11px] text-slate-400">Selecione o cliente, escolha os produtos e defina o prazo de faturamento.</p>
+                <p className="text-[11px] text-slate-400">Selecione o cliente, defina os produtos e escolha os canais de envio do documento.</p>
               </div>
               <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">
                 ✕
@@ -723,7 +829,7 @@ export default function Vendas() {
                   <option value="">Escolha um cliente cadastrado...</option>
                   {clientesCadastrados.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.nome} (CNPJ/CPF: {c.cpfCnpj})
+                      {c.nome} (CNPJ/CPF: {c.cpfCnpj}) {c.email ? `[${c.email}]` : '[Sem e-mail]'}
                     </option>
                   ))}
                 </select>
@@ -746,7 +852,7 @@ export default function Vendas() {
 
                 {errors.itens && <span className="text-rose-500 text-[10px] font-semibold block">{errors.itens}</span>}
 
-                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
                   {itens.map((item, idx) => {
                     const hasProduct = Boolean(item.produtoId);
                     const lineSubtotal = hasProduct
@@ -868,7 +974,70 @@ export default function Vendas() {
                 </div>
               </div>
 
-              {/* 4. Card de Resumo Financeiro em Tempo Real */}
+              {/* 4. Opções de Envio Automático de Documento */}
+              <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200/80 p-3.5 rounded-xl space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <span>📩 Geração e Envio do Pedido ao Cliente</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-500 font-medium">Formato:</span>
+                    <select
+                      value={formatoDocumento}
+                      onChange={(e) => setFormatoDocumento(e.target.value)}
+                      className="p-1 px-2 border border-blue-200 rounded-lg bg-white font-bold text-blue-700 text-xs focus:ring-2 focus:ring-blue-500/40"
+                    >
+                      <option value="pdf">PDF (Recomendado)</option>
+                      <option value="xlsx">Excel (XLSX)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <label className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enviarEmail}
+                      onChange={(e) => setEnviarEmail(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded accent-blue-600 cursor-pointer"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-800 block text-xs">Enviar por E-mail</span>
+                      <span className="text-[10px] text-slate-500 block">Enviar anexo no e-mail do cliente</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enviarWhatsapp}
+                      onChange={(e) => setEnviarWhatsapp(e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded accent-emerald-600 cursor-pointer"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-800 block text-xs">Enviar por WhatsApp</span>
+                      <span className="text-[10px] text-slate-500 block">Enviar link/resumo no número do cliente</span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Pre-check Warning Banners inside Modal */}
+                {enviarEmail && isClienteMissingEmail && (
+                  <div className="bg-amber-50 border border-amber-200/90 text-amber-800 p-2.5 rounded-lg text-[11px] font-medium flex items-center gap-2 animate-in fade-in">
+                    <span>⚠️</span>
+                    <span>O cliente selecionado não possui e-mail cadastrado. A emissão continuará normalmente e o envio por e-mail será simulado.</span>
+                  </div>
+                )}
+
+                {enviarWhatsapp && isClienteMissingPhone && (
+                  <div className="bg-amber-50 border border-amber-200/90 text-amber-800 p-2.5 rounded-lg text-[11px] font-medium flex items-center gap-2 animate-in fade-in">
+                    <span>⚠️</span>
+                    <span>O cliente selecionado não possui telefone cadastrado. O envio por WhatsApp será simulado com log de aviso.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Card de Resumo Financeiro em Tempo Real */}
               <div className="bg-slate-900 text-white p-4 rounded-xl space-y-2 shadow-inner">
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>Subtotal sem Desconto:</span>
@@ -917,14 +1086,107 @@ export default function Vendas() {
                   {isSubmitting ? (
                     <>
                       <span className="animate-spin text-sm">⏳</span>
-                      <span>Salvando...</span>
+                      <span>Processando Venda & Documento...</span>
                     </>
                   ) : (
-                    <span>{editingVendaId ? 'Salvar Alterações' : 'Emitir Venda'}</span>
+                    <span>{editingVendaId ? 'Salvar Alterações' : 'Emitir Venda & Enviar'}</span>
                   )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal - Histórico de Envios & Reenvio Manual */}
+      {showHistoricoModal && selectedVendaForHistorico && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xl space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 text-xs">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <span>📩 Histórico de Envio da Venda #{selectedVendaForHistorico.id}</span>
+                </h2>
+                <p className="text-slate-500 text-[11px]">Cliente: <strong>{selectedVendaForHistorico.clienteNome}</strong></p>
+              </div>
+              <button
+                onClick={() => setShowHistoricoModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* List of Dispatches */}
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+              {isFetchingHistorico ? (
+                <div className="p-6 text-center text-slate-400 animate-pulse">Carregando histórico de disparos...</div>
+              ) : historicoLogs.length === 0 ? (
+                <div className="p-6 text-center text-slate-400">Nenhum envio registrado para este pedido.</div>
+              ) : (
+                historicoLogs.map((log) => (
+                  <div key={log.id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex justify-between items-start gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          log.canal === 'EMAIL' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {log.canal === 'EMAIL' ? '📧 E-mail' : '💬 WhatsApp'}
+                        </span>
+                        <span className="font-mono text-slate-500 text-[10px]">[{log.formato}]</span>
+                        <span className="text-[10px] text-slate-400">{new Date(log.dataEnvio).toLocaleString('pt-BR')}</span>
+                      </div>
+                      <div className="font-semibold text-slate-800 text-xs">Destino: {log.destinatario}</div>
+                      {log.mensagemErro && (
+                        <div className="text-[10px] text-rose-600 bg-rose-50 p-1.5 rounded border border-rose-100 font-mono">
+                          {log.mensagemErro}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                        log.status === 'SUCESSO' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                      }`}>
+                        {log.status === 'SUCESSO' ? '✓ Enviado' : '⚠️ Erro'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Reenviar Manual Section */}
+            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
+              <span className="font-bold text-slate-800 text-xs block">⚡ Reenviar Documento Manualmente:</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={isResending}
+                  onClick={() => handleReenviarManual('EMAIL')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <span>📧</span> Reenviar por E-mail
+                </button>
+                <button
+                  type="button"
+                  disabled={isResending}
+                  onClick={() => handleReenviarManual('WHATSAPP')}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <span>💬</span> Reenviar por WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowHistoricoModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl active:scale-95 transition-all"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

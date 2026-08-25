@@ -4,6 +4,7 @@ import com.erp.multitenant.dto.AuthResponseDTO;
 import com.erp.multitenant.dto.LoginRequestDTO;
 import com.erp.multitenant.security.JwtProvider;
 import com.erp.multitenant.service.RefreshTokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -29,11 +30,11 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDTO> login(
             @RequestBody @Valid LoginRequestDTO loginDTO,
+            HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String tenantId = (loginDTO.tenantId() != null && !loginDTO.tenantId().isBlank())
-                ? loginDTO.tenantId()
-                : "empresa_demo";
+        String headerTenantId = request.getHeader("X-Tenant-ID");
+        String tenantId = resolveTenantId(loginDTO.username(), loginDTO.tenantId(), headerTenantId);
 
         String accessToken = jwtProvider.generateAccessToken(loginDTO.username(), tenantId, List.of("ROLE_USER"));
         String refreshToken = refreshTokenService.createRefreshToken(loginDTO.username(), tenantId);
@@ -41,7 +42,7 @@ public class AuthController {
         ResponseCookie cookie = refreshTokenService.buildRefreshTokenCookie(refreshToken, 7 * 24 * 3600);
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        return ResponseEntity.ok(new AuthResponseDTO(accessToken));
+        return ResponseEntity.ok(new AuthResponseDTO(accessToken, tenantId));
     }
 
     @PostMapping("/refresh")
@@ -60,7 +61,6 @@ public class AuthController {
                     .body("{\"error\": \"Unauthorized\", \"message\": \"Cookie de Refresh Token ausente\"}");
         }
 
-
         RefreshTokenService.RotationResult result = refreshTokenService.rotateRefreshToken(refreshToken);
 
         if (!result.isSuccess()) {
@@ -75,7 +75,7 @@ public class AuthController {
         ResponseCookie newCookie = refreshTokenService.buildRefreshTokenCookie(result.newRawRefreshToken(), 7 * 24 * 3600);
         response.addHeader(HttpHeaders.SET_COOKIE, newCookie.toString());
 
-        return ResponseEntity.ok(new AuthResponseDTO(newAccessToken));
+        return ResponseEntity.ok(new AuthResponseDTO(newAccessToken, result.tenantId()));
     }
 
     @PostMapping("/logout")
@@ -92,6 +92,19 @@ public class AuthController {
 
         return ResponseEntity.noContent().build();
     }
+
+    private String resolveTenantId(String username, String bodyTenantId, String headerTenantId) {
+        if (bodyTenantId != null && !bodyTenantId.isBlank()) {
+            return bodyTenantId;
+        }
+        if (headerTenantId != null && !headerTenantId.isBlank()) {
+            return headerTenantId;
+        }
+        if (username != null) {
+            String lower = username.toLowerCase();
+            if (lower.contains("sp")) return "filial_sp";
+            if (lower.contains("rj")) return "filial_rj";
+        }
+        return "empresa_demo";
+    }
 }
-
-

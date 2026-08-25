@@ -1,5 +1,6 @@
 package com.erp.multitenant.service;
 
+import com.erp.multitenant.config.TenantContext;
 import com.erp.multitenant.model.Cliente;
 import com.erp.multitenant.repository.ClienteRepository;
 import org.apache.poi.ss.usermodel.*;
@@ -12,12 +13,12 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ClienteExportService {
 
     private final ClienteRepository clienteRepository;
-    private final String defaultTenant = "empresa_demo";
 
     public ClienteExportService(ClienteRepository clienteRepository) {
         this.clienteRepository = clienteRepository;
@@ -67,7 +68,10 @@ public class ClienteExportService {
 
     @Transactional(readOnly = true)
     public byte[] exportClientes(String formato, String search) throws IOException {
-        List<Cliente> clientes = clienteRepository.findByTenantId(defaultTenant);
+        String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isBlank()) tenantId = "empresa_demo";
+
+        List<Cliente> clientes = clienteRepository.findByTenantId(tenantId);
 
         if (search != null && !search.trim().isEmpty()) {
             String term = search.trim().toLowerCase();
@@ -131,22 +135,35 @@ public class ClienteExportService {
         }
     }
 
-    @Transactional
     public Map<String, Object> importClientes(MultipartFile file) throws IOException {
+        String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isBlank()) tenantId = "empresa_demo";
+
         List<Map<String, String>> rows = parseFile(file);
         List<Map<String, Object>> erros = new ArrayList<>();
-        List<Cliente> clientesSalvar = new ArrayList<>();
+        List<AbstractMap.SimpleEntry<Cliente, Integer>> clientesSalvar = new ArrayList<>();
         Set<String> cpfCnpjsInFile = new HashSet<>();
+
+        List<Cliente> existingClientes = clienteRepository.findByTenantId(tenantId);
+        Set<String> existingDbCpfsClean = existingClientes.stream()
+                .map(c -> c.getCpfCnpj() != null ? c.getCpfCnpj().replaceAll("[^0-9]", "") : "")
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
+
+        Set<String> existingDbCpfsRaw = existingClientes.stream()
+                .map(c -> c.getCpfCnpj() != null ? c.getCpfCnpj().trim().toLowerCase() : "")
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
 
         int linhaIdx = 1; // Header is line 1
         for (Map<String, String> row : rows) {
             linhaIdx++;
-            String nome = getFirstNonEmpty(row, "nome_razao_social", "nome", "razao_social", "nome/razão social", "cliente");
-            String cpfCnpj = getFirstNonEmpty(row, "cpf_cnpj", "cpf", "cnpj", "cpf/cnpj");
-            String ie = getFirstNonEmpty(row, "inscricao_estadual", "ie", "inscrição_estadual");
-            String telefone = getFirstNonEmpty(row, "telefone", "tel", "celular", "fone");
-            String email = getFirstNonEmpty(row, "email", "e-mail");
-            String obs = getFirstNonEmpty(row, "observacao", "observação", "obs");
+            String nome = getFirstNonEmpty(row, 0, "nome_razao_social", "nome", "razao_social", "nome/razão social", "cliente", "razao social", "nome/razao social", "nome_razao");
+            String cpfCnpj = getFirstNonEmpty(row, 1, "cpf_cnpj", "cpf", "cnpj", "cpf/cnpj", "cpf / cnpj", "documento");
+            String ie = getFirstNonEmpty(row, 2, "inscricao_estadual", "ie", "inscrição_estadual", "inscricao estadual");
+            String telefone = getFirstNonEmpty(row, 3, "telefone", "tel", "celular", "fone");
+            String email = getFirstNonEmpty(row, 4, "email", "e-mail");
+            String obs = getFirstNonEmpty(row, 5, "observacao", "observação", "obs");
 
             if (nome.isEmpty()) {
                 erros.add(Map.of("linha", linhaIdx, "motivo", "Nome/Razão Social é obrigatório"));
@@ -159,17 +176,21 @@ public class ClienteExportService {
             }
 
             String cleanCpf = cpfCnpj.replaceAll("[^0-9]", "");
-            if (cpfCnpjsInFile.contains(cleanCpf)) {
+            String lowerCpf = cpfCnpj.trim().toLowerCase();
+
+            if (!cleanCpf.isEmpty() && cpfCnpjsInFile.contains(cleanCpf)) {
                 erros.add(Map.of("linha", linhaIdx, "motivo", "CPF/CNPJ duplicado no mesmo arquivo: " + cpfCnpj));
                 continue;
             }
 
-            if (clienteRepository.existsByTenantIdAndCpfCnpj(defaultTenant, cpfCnpj)) {
+            if ((!cleanCpf.isEmpty() && existingDbCpfsClean.contains(cleanCpf)) || existingDbCpfsRaw.contains(lowerCpf)) {
                 erros.add(Map.of("linha", linhaIdx, "motivo", "CPF/CNPJ já cadastrado no sistema: " + cpfCnpj));
                 continue;
             }
 
-            cpfCnpjsInFile.add(cleanCpf);
+            if (!cleanCpf.isEmpty()) {
+                cpfCnpjsInFile.add(cleanCpf);
+            }
 
             Cliente c = new Cliente();
             c.setNome(nome);
@@ -178,17 +199,29 @@ public class ClienteExportService {
             c.setTelefone(telefone);
             c.setEmail(email);
             c.setObservacao(obs);
-            c.setTenantId(defaultTenant);
+            c.setTenantId(tenantId);
             c.setCriadoEm(LocalDateTime.now());
-            clientesSalvar.add(c);
+            clientesSalvar.add(new AbstractMap.SimpleEntry<>(c, linhaIdx));
         }
 
-        if (!clientesSalvar.isEmpty()) {
-            clienteRepository.saveAll(clientesSalvar);
+        int importadosCount = 0;
+        for (AbstractMap.SimpleEntry<Cliente, Integer> entry : clientesSalvar) {
+            Cliente c = entry.getKey();
+            int linhaNo = entry.getValue();
+            try {
+                clienteRepository.saveAndFlush(c);
+                importadosCount++;
+                String clean = c.getCpfCnpj().replaceAll("[^0-9]", "");
+                if (!clean.isEmpty()) existingDbCpfsClean.add(clean);
+                existingDbCpfsRaw.add(c.getCpfCnpj().trim().toLowerCase());
+            } catch (Exception ex) {
+                String causeMsg = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
+                erros.add(Map.of("linha", linhaNo, "motivo", "Erro ao salvar no banco: " + causeMsg));
+            }
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("importados", clientesSalvar.size());
+        result.put("importados", importadosCount);
         result.put("erros", erros);
         return result;
     }
@@ -208,17 +241,25 @@ public class ClienteExportService {
             String line = reader.readLine();
             if (line == null) return result;
 
+            if (line.startsWith("\uFEFF")) {
+                line = line.substring(1);
+            }
+
             String[] headers = line.split("[,;]");
             for (int i = 0; i < headers.length; i++) {
-                headers[i] = headers[i].trim().replace("\"", "").toLowerCase();
+                headers[i] = normalizeHeader(headers[i]);
             }
 
             while ((line = reader.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
                 String[] values = line.split("[,;]", -1);
                 Map<String, String> row = new HashMap<>();
-                for (int i = 0; i < headers.length && i < values.length; i++) {
-                    row.put(headers[i], values[i].trim().replace("\"", ""));
+                for (int i = 0; i < values.length; i++) {
+                    String cleanVal = values[i].trim().replace("\"", "");
+                    row.put("col_" + i, cleanVal);
+                    if (i < headers.length) {
+                        row.put(headers[i], cleanVal);
+                    }
                 }
                 result.add(row);
             }
@@ -237,18 +278,21 @@ public class ClienteExportService {
             List<String> headers = new ArrayList<>();
             DataFormatter formatter = new DataFormatter();
             for (Cell cell : headerRow) {
-                headers.add(formatter.formatCellValue(cell).trim().toLowerCase().replace(" ", "_"));
+                headers.add(normalizeHeader(formatter.formatCellValue(cell)));
             }
 
             while (rowIterator.hasNext()) {
                 Row row = rowIterator.next();
                 Map<String, String> rowMap = new HashMap<>();
                 boolean hasContent = false;
-                for (int i = 0; i < headers.size(); i++) {
+                for (int i = 0; i < headers.size() || i < row.getLastCellNum(); i++) {
                     Cell cell = row.getCell(i);
                     String val = formatter.formatCellValue(cell).trim();
                     if (!val.isEmpty()) hasContent = true;
-                    rowMap.put(headers.get(i), val);
+                    rowMap.put("col_" + i, val);
+                    if (i < headers.size()) {
+                        rowMap.put(headers.get(i), val);
+                    }
                 }
                 if (hasContent) {
                     result.add(rowMap);
@@ -258,14 +302,35 @@ public class ClienteExportService {
         return result;
     }
 
-    private String getFirstNonEmpty(Map<String, String> row, String... keys) {
+    private String getFirstNonEmpty(Map<String, String> row, int fallbackColIndex, String... keys) {
         for (String key : keys) {
             String val = row.get(key);
             if (val != null && !val.trim().isEmpty()) {
                 return val.trim();
             }
         }
+        String fallback = row.get("col_" + fallbackColIndex);
+        if (fallback != null && !fallback.trim().isEmpty()) {
+            return fallback.trim();
+        }
         return "";
+    }
+
+    private String normalizeHeader(String input) {
+        if (input == null) return "";
+        return input.trim()
+                .toLowerCase()
+                .replace("\"", "")
+                .replace("\uFEFF", "")
+                .replace("ã", "a")
+                .replace("ç", "c")
+                .replace("õ", "o")
+                .replace("á", "a")
+                .replace("é", "e")
+                .replace("í", "i")
+                .replace("ó", "o")
+                .replace("ú", "u")
+                .replace(" ", "_");
     }
 
     private String escapeCsv(String input) {

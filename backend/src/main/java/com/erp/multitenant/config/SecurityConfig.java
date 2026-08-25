@@ -64,6 +64,7 @@ public class SecurityConfig {
                     "/error",
                     "/perfil/**",
                     "/empresa/**",
+                    "/configuracoes/**",
                     "/notificacoes/**",
                     "/dashboard/**",
                     "/clientes/**",

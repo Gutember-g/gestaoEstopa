@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
 import { useToast } from '../context/ToastContext';
@@ -23,30 +23,25 @@ export default function Produtos() {
   });
 
   // Local Products List
-  const [localProdutos, setLocalProdutos] = useState([
-    { id: 1, sku: 'SKU-001', nome: 'Estopa Branca Especial 1kg', precoCusto: 8.50, precoVenda: 18.00, margemLucro: 111.76, status: 'ATIVO', temVendas: true },
-    { id: 2, sku: 'SKU-002', nome: 'Estopa Colorida Limpeza 500g', precoCusto: 4.20, precoVenda: 9.50, margemLucro: 126.19, status: 'ATIVO', temVendas: true },
-    { id: 3, sku: 'SKU-003', nome: 'Panos de Chão Algodão Pacote 10x', precoCusto: 15.00, precoVenda: 28.00, margemLucro: 86.67, status: 'ATIVO', temVendas: true },
-    { id: 4, sku: 'SKU-004', nome: 'Retalho Industrial Fardo 5kg', precoCusto: 22.00, precoVenda: 35.00, margemLucro: 59.09, status: 'INATIVO', temVendas: false },
-  ]);
+  const [localProdutos, setLocalProdutos] = useState([]);
 
-  const { data: produtosRaw = localProdutos, isLoading } = useQuery({
+  const { data: produtosRaw = [], isLoading, refetch: refetchProdutos } = useQuery({
     queryKey: ['produtos'],
     queryFn: async () => {
       try {
         const res = await api.get('/produtos');
-        if (Array.isArray(res.data) && res.data.length > 0) return res.data;
-        if (res.data && Array.isArray(res.data.content) && res.data.content.length > 0) return res.data.content;
-        return localProdutos;
+        if (Array.isArray(res.data)) return res.data;
+        if (res.data && Array.isArray(res.data.content)) return res.data.content;
+        return [];
       } catch {
-        return localProdutos;
+        return [];
       }
     },
   });
 
   const produtos = Array.isArray(produtosRaw)
     ? produtosRaw
-    : (produtosRaw && Array.isArray(produtosRaw.content) ? produtosRaw.content : localProdutos);
+    : (produtosRaw && Array.isArray(produtosRaw.content) ? produtosRaw.content : []);
 
   const handleOpenNewModal = () => {
     setEditingProdutoId(null);
@@ -87,7 +82,9 @@ export default function Produtos() {
     return '0.00';
   };
 
-  const handleSubmit = (e) => {
+  const queryClient = useQueryClient();
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -113,67 +110,66 @@ export default function Produtos() {
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
+    try {
       const margem = parseFloat(calculateMarginPreview());
+      const payload = {
+        sku: `SKU-00${Math.floor(100 + Math.random() * 900)}`,
+        nome: formData.nome.trim(),
+        precoCusto: custo,
+        precoVenda: venda,
+        margemLucro: margem,
+        status: formData.status,
+      };
 
       if (editingProdutoId) {
-        // Edit mode
-        const updated = localProdutos.map((p) => {
-          if (p.id === editingProdutoId) {
-            return {
-              ...p,
-              nome: formData.nome,
-              precoCusto: custo,
-              precoVenda: venda,
-              margemLucro: margem,
-              status: formData.status,
-            };
-          }
-          return p;
-        });
-        setLocalProdutos(updated);
+        await api.put(`/produtos/${editingProdutoId}`, payload);
         showSuccess(`Produto "${formData.nome}" atualizado com sucesso! ✓`);
       } else {
-        // Create mode
-        const newProd = {
-          id: Math.floor(10 + Math.random() * 90),
-          sku: `SKU-00${localProdutos.length + 1}`,
-          nome: formData.nome,
-          precoCusto: custo,
-          precoVenda: venda,
-          margemLucro: margem,
-          status: formData.status,
-          temVendas: false,
-        };
-        setLocalProdutos([...localProdutos, newProd]);
-        showSuccess(`Produto "${newProd.nome}" cadastrado com sucesso! ✓`);
+        await api.post('/produtos', payload);
+        showSuccess(`Produto "${formData.nome}" cadastrado com sucesso! ✓`);
       }
 
-      setIsSubmitting(false);
+      await queryClient.invalidateQueries(['produtos']);
       handleCloseModal();
-    }, 500);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Erro ao salvar produto no banco de dados.';
+      showError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Inactivate Action
-  const handleInativarProduto = (prod) => {
-    const updated = localProdutos.map((p) => (p.id === prod.id ? { ...p, status: 'INATIVO' } : p));
-    setLocalProdutos(updated);
-    showSuccess(`Produto "${prod.nome}" foi inativado ✓`);
-    setDeleteConfirmProd(null);
+  const handleInativarProduto = async (prod) => {
+    try {
+      await api.put(`/produtos/${prod.id}`, {
+        ...prod,
+        status: 'INATIVO',
+      });
+      showSuccess(`Produto "${prod.nome}" foi inativado ✓`);
+      await queryClient.invalidateQueries(['produtos']);
+    } catch (err) {
+      showError(err.response?.data?.message || 'Erro ao inativar produto.');
+    } finally {
+      setDeleteConfirmProd(null);
+    }
   };
 
   // Delete Action
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteConfirmProd) return;
     setIsDeleting(true);
 
-    setTimeout(() => {
-      const filtered = localProdutos.filter((p) => p.id !== deleteConfirmProd.id);
-      setLocalProdutos(filtered);
+    try {
+      await api.delete(`/produtos/${deleteConfirmProd.id}`);
       showSuccess(`Produto "${deleteConfirmProd.nome}" excluído definitivamente ✓`);
-      setIsDeleting(false);
+      await queryClient.invalidateQueries(['produtos']);
       setDeleteConfirmProd(null);
-    }, 500);
+    } catch (err) {
+      showError(err.response?.data?.message || 'Erro ao excluir produto do banco de dados.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (

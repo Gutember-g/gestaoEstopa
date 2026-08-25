@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import api from '../services/api';
 import { formatCurrencyBRL } from '../utils/money';
 import { useToast } from '../context/ToastContext';
@@ -38,126 +39,29 @@ export default function Clientes() {
   const [importPreview, setImportPreview] = useState([]);
   const [isImporting, setIsImporting] = useState(false);
 
-  // Local Sales database for client history mapping
-  const salesDatabase = {
-    1: [
-      {
-        id: 101,
-        dataVenda: '2026-08-05 14:30',
-        custoTotal: 29.00,
-        valorTotal: 55.00,
-        desconto: 0.00,
-        lucroLiquido: 26.00,
-        prazoFaturamentoDias: 30,
-        dataVencimento: '2026-09-04',
-        status: 'PENDENTE',
-        itens: [
-          { sku: 'SKU-001', nomeProduto: 'Estopa Branca Premium 1kg', custoUnitario: 8.50, precoUnitario: 15.00, quantidade: 1 },
-          { sku: 'SKU-004', nomeProduto: 'Pano de Chão Alvejado 10 un', custoUnitario: 12.00, precoUnitario: 25.00, quantidade: 1 },
-        ],
-      },
-      {
-        id: 98,
-        dataVenda: '2026-07-20 10:00',
-        custoTotal: 100.00,
-        valorTotal: 210.00,
-        desconto: 0.00,
-        lucroLiquido: 110.00,
-        prazoFaturamentoDias: 15,
-        dataVencimento: '2026-08-04',
-        status: 'PAGO',
-        itens: [
-          { sku: 'SKU-003', nomeProduto: 'Retalho de Malha Algodão 5kg', custoUnitario: 22.00, precoUnitario: 42.00, quantidade: 5 },
-        ],
-      },
-    ],
-    2: [
-      {
-        id: 102,
-        dataVenda: '2026-08-04 11:15',
-        custoTotal: 110.00,
-        valorTotal: 210.00,
-        desconto: 10.00,
-        lucroLiquido: 100.00,
-        prazoFaturamentoDias: 15,
-        dataVencimento: '2026-08-19',
-        status: 'PAGO',
-        itens: [
-          { sku: 'SKU-003', nomeProduto: 'Retalho de Malha Algodão 5kg', custoUnitario: 22.00, precoUnitario: 42.00, quantidade: 5 },
-        ],
-      },
-    ],
-  };
+  // Sales database for client history
+  const salesDatabase = {};
 
   // Local Clients state
-  const [localClientes, setLocalClientes] = useState([
-    {
-      id: 1,
-      nome: 'Distribuidora Silva & Cia',
-      cpfCnpj: '12.345.678/0001-90',
-      inscricaoEstadual: '110.234.567-00',
-      telefone: '(11) 98765-4321',
-      email: 'contato@silva.com',
-      observacao: 'Cliente VIP desde 2024',
-      status: 'ATIVO',
-      temVendas: true,
-      vendasCount: 2,
-    },
-    {
-      id: 2,
-      nome: 'Auto Peças Modelo Ltda',
-      cpfCnpj: '98.765.432/0001-10',
-      inscricaoEstadual: 'ISENTO',
-      telefone: '(11) 91234-5678',
-      email: 'compras@modelo.com',
-      observacao: 'Faturamento em 30 dias',
-      status: 'ATIVO',
-      temVendas: true,
-      vendasCount: 1,
-    },
-    {
-      id: 3,
-      nome: 'Comércio Industrial Souza',
-      cpfCnpj: '45.678.901/0001-23',
-      inscricaoEstadual: '120.345.678-00',
-      telefone: '(11) 96543-2109',
-      email: 'financeiro@souza.com',
-      observacao: 'Contato preferencial por e-mail',
-      status: 'ATIVO',
-      temVendas: false,
-      vendasCount: 0,
-    },
-    {
-      id: 4,
-      nome: 'Mecânica Express Eireli',
-      cpfCnpj: '34.567.890/0001-45',
-      inscricaoEstadual: 'ISENTO',
-      telefone: '(11) 95432-1098',
-      email: 'atendimento@express.com',
-      observacao: 'Retira produtos na loja',
-      status: 'ATIVO',
-      temVendas: false,
-      vendasCount: 0,
-    },
-  ]);
+  const [localClientes, setLocalClientes] = useState([]);
 
-  const { data: clientesRaw = localClientes, isLoading, refetch } = useQuery({
+  const { data: clientesRaw = [], isLoading, refetch } = useQuery({
     queryKey: ['clientes'],
     queryFn: async () => {
       try {
         const res = await api.get('/clientes');
-        if (Array.isArray(res.data) && res.data.length > 0) return res.data;
-        if (res.data && Array.isArray(res.data.content) && res.data.content.length > 0) return res.data.content;
-        return localClientes;
+        if (Array.isArray(res.data)) return res.data;
+        if (res.data && Array.isArray(res.data.content)) return res.data.content;
+        return [];
       } catch {
-        return localClientes;
+        return [];
       }
     },
   });
 
   const clientes = Array.isArray(clientesRaw)
     ? clientesRaw
-    : (clientesRaw && Array.isArray(clientesRaw.content) ? clientesRaw.content : localClientes);
+    : (clientesRaw && Array.isArray(clientesRaw.content) ? clientesRaw.content : []);
 
   // Resilient search function (ignores case, dots, slashes, dashes, spaces)
   const normalizeStr = (str) =>
@@ -243,22 +147,91 @@ export default function Clientes() {
 
     const fileName = file.name.toLowerCase();
 
+    // Excel Parsing (XLSX / XLS)
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      setImportPreview([
-        {
-          linha: 1,
-          nome: `Arquivo Excel (${file.name})`,
-          cpfCnpj: 'Pronto para processamento',
-          ie: '-',
-          tel: '-',
-          em: '-',
-          statusRow: 'VALIDO',
-          motivo: 'Formato Excel pronto para envio ao servidor',
-        },
-      ]);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+          if (!jsonRows || jsonRows.length <= 1) {
+            setImportPreview([]);
+            return;
+          }
+
+          const rawHeaders = jsonRows[0].map((h) => String(h).trim().toLowerCase().replace(/"/g, ''));
+          const existingCpfs = new Set(clientes.map((c) => (c.cpfCnpj || '').replace(/[^\d]/g, '')));
+          const previewData = [];
+
+          const findHeaderIdx = (keys) => {
+            for (const key of keys) {
+              const idx = rawHeaders.findIndex((h) => h.includes(key));
+              if (idx !== -1) return idx;
+            }
+            return -1;
+          };
+
+          const nomeIdx = findHeaderIdx(['nome', 'razao']);
+          const cpfIdx = findHeaderIdx(['cpf', 'cnpj', 'documento']);
+          const ieIdx = findHeaderIdx(['inscricao', 'ie']);
+          const telIdx = findHeaderIdx(['telefone', 'tel', 'celular', 'fone']);
+          const emailIdx = findHeaderIdx(['email', 'e-mail']);
+
+          for (let i = 1; i < jsonRows.length; i++) {
+            const cols = jsonRows[i].map((c) => String(c).trim());
+            const hasContent = cols.some((c) => Boolean(c));
+            if (!hasContent) continue;
+
+            const nome = nomeIdx !== -1 && cols[nomeIdx] ? cols[nomeIdx] : (cols[0] || '');
+            const cpfCnpj = cpfIdx !== -1 && cols[cpfIdx] ? cols[cpfIdx] : (cols[1] || '');
+            const ie = ieIdx !== -1 && cols[ieIdx] ? cols[ieIdx] : (cols[2] || '');
+            const tel = telIdx !== -1 && cols[telIdx] ? cols[telIdx] : (cols[3] || '');
+            const em = emailIdx !== -1 && cols[emailIdx] ? cols[emailIdx] : (cols[4] || '');
+
+            let statusRow = 'VALIDO';
+            let motivo = 'Pronto para importar';
+
+            if (!nome) {
+              statusRow = 'INVALIDO';
+              motivo = 'Nome/Razão Social obrigatório';
+            } else if (!cpfCnpj) {
+              statusRow = 'INVALIDO';
+              motivo = 'CPF/CNPJ obrigatório';
+            } else {
+              const cleanCpf = cpfCnpj.replace(/[^\d]/g, '');
+              if (existingCpfs.has(cleanCpf)) {
+                statusRow = 'INVALIDO';
+                motivo = 'CPF/CNPJ já cadastrado no sistema';
+              }
+            }
+
+            previewData.push({
+              linha: i + 1,
+              nome,
+              cpfCnpj,
+              ie,
+              tel,
+              em,
+              statusRow,
+              motivo,
+            });
+          }
+
+          setImportPreview(previewData);
+        } catch (err) {
+          console.error('Erro ao ler XLSX:', err);
+          showError('Falha ao ler o arquivo Excel.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
       return;
     }
 
+    // CSV Parsing
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target.result;
@@ -275,7 +248,7 @@ export default function Clientes() {
       const telIdx = headers.indexOf('telefone');
       const emailIdx = headers.indexOf('email');
 
-      const existingCpfs = new Set(localClientes.map((c) => c.cpfCnpj.replace(/[^\d]/g, '')));
+      const existingCpfs = new Set(clientes.map((c) => (c.cpfCnpj || '').replace(/[^\d]/g, '')));
       const previewData = [];
 
       for (let i = 1; i < lines.length; i++) {
@@ -321,8 +294,9 @@ export default function Clientes() {
   };
 
   const handleConfirmImport = async () => {
-    if (!importFile) return;
+    if (!importFile || isImporting) return;
     setIsImporting(true);
+
     try {
       const formData = new FormData();
       formData.append('file', importFile);
@@ -331,33 +305,24 @@ export default function Clientes() {
       });
 
       const { importados, erros } = res.data;
-      await refetch();
-      showSuccess(`${importados} cliente(s) importado(s) com sucesso! ✓`);
-      if (erros && erros.length > 0) {
-        showError(`${erros.length} linha(s) com erro ignoradas.`);
-      }
-    } catch {
-      const validRows = importPreview.filter((r) => r.statusRow === 'VALIDO');
-      const newClientes = validRows.map((r) => ({
-        id: Math.floor(1000 + Math.random() * 9000),
-        nome: r.nome,
-        cpfCnpj: r.cpfCnpj,
-        inscricaoEstadual: r.ie || 'ISENTO',
-        telefone: r.tel || '(11) 90000-0000',
-        email: r.em || 'cliente@importado.com',
-        observacao: 'Importado via arquivo',
-        status: 'ATIVO',
-        temVendas: false,
-        vendasCount: 0,
-      }));
+      await queryClient.invalidateQueries(['clientes']);
 
-      setLocalClientes((prev) => [...prev, ...newClientes]);
-      showSuccess(`${validRows.length} cliente(s) importado(s) com sucesso! ✓`);
-    } finally {
-      setIsImporting(false);
+      const errosCount = erros ? erros.length : 0;
+      if (errosCount > 0) {
+        showSuccess(`${importados} importado(s), ${errosCount} com erro/duplicado ignorado(s) ✓`);
+      } else {
+        showSuccess(`${importados} cliente(s) importado(s) com sucesso! ✓`);
+      }
+
+      // Always close modal & reset selection state upon completed import
       setShowImportModal(false);
       setImportFile(null);
       setImportPreview([]);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Erro ao importar arquivo no servidor.';
+      showError(msg);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -412,7 +377,9 @@ export default function Clientes() {
     setErrors({});
   };
 
-  const handleSubmit = (e) => {
+  const queryClient = useQueryClient();
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -432,69 +399,66 @@ export default function Clientes() {
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
+    try {
+      const payload = {
+        nome: formData.nome.trim(),
+        cpfCnpj: formData.cpfCnpj.trim(),
+        inscricaoEstadual: formData.inscricaoEstadual.trim() || 'ISENTO',
+        telefone: formData.telefone.trim(),
+        email: formData.email.trim(),
+        observacao: formData.observacao.trim(),
+        status: formData.status,
+      };
+
       if (editingClienteId) {
-        // Edit Mode
-        const updated = localClientes.map((c) => {
-          if (c.id === editingClienteId) {
-            return {
-              ...c,
-              nome: formData.nome,
-              cpfCnpj: formData.cpfCnpj,
-              inscricaoEstadual: formData.inscricaoEstadual,
-              telefone: formData.telefone,
-              email: formData.email,
-              observacao: formData.observacao,
-              status: formData.status,
-            };
-          }
-          return c;
-        });
-        setLocalClientes(updated);
+        await api.put(`/clientes/${editingClienteId}`, payload);
         showSuccess(`Cliente "${formData.nome}" atualizado com sucesso! ✓`);
       } else {
-        // Create Mode
-        const newCliente = {
-          id: Math.floor(10 + Math.random() * 90),
-          nome: formData.nome,
-          cpfCnpj: formData.cpfCnpj,
-          inscricaoEstadual: formData.inscricaoEstadual || 'ISENTO',
-          telefone: formData.telefone,
-          email: formData.email,
-          observacao: formData.observacao,
-          status: formData.status,
-          temVendas: false,
-          vendasCount: 0,
-        };
-        setLocalClientes([...localClientes, newCliente]);
-        showSuccess(`Cliente "${newCliente.nome}" cadastrado com sucesso! ✓`);
+        await api.post('/clientes', payload);
+        showSuccess(`Cliente "${formData.nome}" cadastrado com sucesso! ✓`);
       }
 
-      setIsSubmitting(false);
+      await queryClient.invalidateQueries(['clientes']);
       handleCloseModal();
-    }, 500);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Erro ao salvar cliente no banco de dados.';
+      showError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Inactivate Action
-  const handleInativarCliente = (cliente) => {
-    const updated = localClientes.map((c) => (c.id === cliente.id ? { ...c, status: 'INATIVO' } : c));
-    setLocalClientes(updated);
-    showSuccess(`Cliente "${cliente.nome}" foi marcado como INATIVO ✓`);
-    setDeleteConfirmCliente(null);
+  const handleInativarCliente = async (cliente) => {
+    try {
+      await api.put(`/clientes/${cliente.id}`, {
+        ...cliente,
+        status: 'INATIVO',
+      });
+      showSuccess(`Cliente "${cliente.nome}" foi marcado como INATIVO ✓`);
+      await queryClient.invalidateQueries(['clientes']);
+    } catch (err) {
+      showError(err.response?.data?.message || 'Erro ao inativar cliente.');
+    } finally {
+      setDeleteConfirmCliente(null);
+    }
   };
 
   // Confirm Delete Action
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteConfirmCliente) return;
     setIsDeleting(true);
 
-    setTimeout(() => {
-      const filtered = localClientes.filter((c) => c.id !== deleteConfirmCliente.id);
-      setLocalClientes(filtered);
+    try {
+      await api.delete(`/clientes/${deleteConfirmCliente.id}`);
       showSuccess(`Cadastro de "${deleteConfirmCliente.nome}" excluído definitivamente ✓`);
-      setIsDeleting(false);
+      await queryClient.invalidateQueries(['clientes']);
       setDeleteConfirmCliente(null);
-    }, 500);
+    } catch (err) {
+      showError(err.response?.data?.message || 'Erro ao excluir cliente do banco de dados.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const statusBadges = {

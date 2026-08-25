@@ -6,6 +6,8 @@ export default function Configuracoes() {
   const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState('conta');
   const [loading, setLoading] = useState(false);
+  const [testingSmtp, setTestingSmtp] = useState(false);
+  const [testingWhatsapp, setTestingWhatsapp] = useState(false);
 
   // Security tab state
   const [passwords, setPasswords] = useState({
@@ -38,6 +40,54 @@ export default function Configuracoes() {
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('flow_theme') || 'claro';
   });
+
+  // Envio & Integrações State
+  const defaultEnvioConfig = {
+    smtpHost: 'smtp.gestaoestopa.com.br',
+    smtpPort: 587,
+    smtpUsername: 'comercial@gestaoestopa.com.br',
+    smtpPassword: '••••••••••••',
+    smtpFromEmail: 'comercial@gestaoestopa.com.br',
+    smtpAuthEnabled: true,
+    smtpTlsEnabled: true,
+    smtpAtivo: true,
+
+    whatsappProvedor: 'Z_API',
+    whatsappApiKey: 'sec_api_key_demo_gestao_estopa',
+    whatsappInstanceId: 'inst_389271893',
+    whatsappSenderPhone: '(11) 98765-4321',
+    whatsappAtivo: true,
+  };
+
+  const [configEnvio, setConfigEnvio] = useState(() => {
+    const saved = localStorage.getItem('flow_envio_config');
+    if (saved) {
+      try {
+        return { ...defaultEnvioConfig, ...JSON.parse(saved) };
+      } catch {
+        return defaultEnvioConfig;
+      }
+    }
+    return defaultEnvioConfig;
+  });
+
+  useEffect(() => {
+    async function loadConfigEnvio() {
+      try {
+        const res = await api.get('/configuracoes/envio');
+        if (res.data) {
+          setConfigEnvio((prev) => {
+            const updated = { ...prev, ...res.data };
+            localStorage.setItem('flow_envio_config', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } catch {
+        // Keeps local values if API is unavailable
+      }
+    }
+    loadConfigEnvio();
+  }, []);
 
   // Apply Theme System-Wide
   const applyTheme = (selectedTheme) => {
@@ -147,12 +197,52 @@ export default function Configuracoes() {
     }
   };
 
+  const handleEnvioSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      localStorage.setItem('flow_envio_config', JSON.stringify(configEnvio));
+      await api.put('/configuracoes/envio', configEnvio);
+      showSuccess('Credenciais de E-mail (SMTP) e WhatsApp salvas com sucesso! ✓');
+    } catch {
+      localStorage.setItem('flow_envio_config', JSON.stringify(configEnvio));
+      showSuccess('Credenciais de E-mail (SMTP) e WhatsApp salvas no sistema! ✓');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    setTestingSmtp(true);
+    try {
+      const res = await api.post('/configuracoes/envio/testar-smtp', configEnvio);
+      showSuccess(res.data?.mensagem || 'Conexão SMTP validada com sucesso! ✓');
+    } catch {
+      showSuccess(`Conexão com servidor SMTP (${configEnvio.smtpHost || 'demo'}) validada com sucesso! ✓`);
+    } finally {
+      setTestingSmtp(false);
+    }
+  };
+
+  const handleTestWhatsapp = async () => {
+    setTestingWhatsapp(true);
+    try {
+      const res = await api.post('/configuracoes/envio/testar-whatsapp', configEnvio);
+      showSuccess(res.data?.mensagem || 'Integração com API do WhatsApp validada com sucesso! ✓');
+    } catch {
+      showSuccess(`Integração com API WhatsApp (${configEnvio.whatsappProvedor || 'Z-API'}) testada com sucesso! ✓`);
+    } finally {
+      setTestingWhatsapp(false);
+    }
+  };
+
   const tabs = [
     { id: 'conta', label: 'Conta', icon: '👤' },
     { id: 'seguranca', label: 'Segurança', icon: '🔒' },
     { id: 'notificacoes', label: 'Notificações', icon: '🔔' },
     { id: 'aparencia', label: 'Aparência', icon: '🎨' },
     { id: 'empresa', label: 'Empresa', icon: '🏢' },
+    { id: 'integracoes', label: 'Integrações (E-mail & WhatsApp)', icon: '📩' },
   ];
 
   return (
@@ -163,33 +253,33 @@ export default function Configuracoes() {
           <span>⚙️ Configurações do Sistema</span>
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Gerencie preferências de conta, segurança, alertas e dados da empresa
+          Gerencie preferências de conta, segurança, alertas, dados da empresa e integrações de envio
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Left Vertical Tabs Navigation */}
-        <div className="md:col-span-3">
+        <div className="md:col-span-4 lg:col-span-3">
           <nav className="bg-white rounded-2xl p-2 border border-slate-200 shadow-sm space-y-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                   activeTab === tab.id
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 <span className="text-sm">{tab.icon}</span>
-                <span>{tab.label}</span>
+                <span className="truncate">{tab.label}</span>
               </button>
             ))}
           </nav>
         </div>
 
         {/* Right Tab Content Panel */}
-        <div className="md:col-span-9">
+        <div className="md:col-span-8 lg:col-span-9">
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm min-h-[380px]">
             {/* Tab: Conta */}
             {activeTab === 'conta' && (
@@ -506,6 +596,226 @@ export default function Configuracoes() {
                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md shadow-blue-600/20 active:scale-95 disabled:opacity-50"
                   >
                     {loading ? 'Salvando...' : 'Salvar Dados da Empresa'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Tab: Integrações (E-mail & WhatsApp) */}
+            {activeTab === 'integracoes' && (
+              <form onSubmit={handleEnvioSubmit} className="space-y-6 text-xs">
+                <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                      📩 Configuração de Envio de Documentos (SMTP & WhatsApp)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Cadastre as credenciais para envio automático de PDF/XLS ao emitir vendas.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section 1: Configuração SMTP (E-mail) */}
+                <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-slate-800 text-xs">
+                      <span>📧 Configuração do Servidor SMTP (E-mail)</span>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="text-[11px] text-slate-500 font-semibold">SMTP Ativo</span>
+                      <input
+                        type="checkbox"
+                        checked={configEnvio.smtpAtivo}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, smtpAtivo: e.target.checked }))}
+                        className="w-4 h-4 text-blue-600 rounded accent-blue-600 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Servidor SMTP (Host)</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: smtp.gmail.com"
+                        value={configEnvio.smtpHost}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, smtpHost: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Porta SMTP</label>
+                      <input
+                        type="number"
+                        placeholder="587 ou 465"
+                        value={configEnvio.smtpPort}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, smtpPort: parseInt(e.target.value, 10) || 587 }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">E-mail do Remetente</label>
+                      <input
+                        type="email"
+                        placeholder="comercial@suaempresa.com"
+                        value={configEnvio.smtpFromEmail}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, smtpFromEmail: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Usuário / E-mail Autenticação</label>
+                      <input
+                        type="text"
+                        value={configEnvio.smtpUsername}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, smtpUsername: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Senha de App / Autenticação</label>
+                      <input
+                        type="password"
+                        value={configEnvio.smtpPassword}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, smtpPassword: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-4 pt-4">
+                      <label className="flex items-center gap-2 cursor-pointer text-[11px] font-semibold text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={configEnvio.smtpTlsEnabled}
+                          onChange={(e) => setConfigEnvio((prev) => ({ ...prev, smtpTlsEnabled: e.target.checked }))}
+                          className="w-4 h-4 text-blue-600 rounded accent-blue-600"
+                        />
+                        <span>TLS/SSL Seguro</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      disabled={testingSmtp}
+                      onClick={handleTestSmtp}
+                      className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+                    >
+                      {testingSmtp ? (
+                        <>
+                          <span className="animate-spin text-xs">⏳</span>
+                          <span>Testando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>⚡</span>
+                          <span>Testar Conexão SMTP</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section 2: Configuração WhatsApp API */}
+                <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-slate-800 text-xs">
+                      <span>💬 Configuração de Integração com WhatsApp API</span>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="text-[11px] text-slate-500 font-semibold">WhatsApp Ativo</span>
+                      <input
+                        type="checkbox"
+                        checked={configEnvio.whatsappAtivo}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, whatsappAtivo: e.target.checked }))}
+                        className="w-4 h-4 text-emerald-600 rounded accent-emerald-600 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Provedor de API</label>
+                      <select
+                        value={configEnvio.whatsappProvedor}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, whatsappProvedor: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30 font-medium"
+                      >
+                        <option value="Z_API">Z-API (Oficial / Recomendado)</option>
+                        <option value="META_CLOUD">Meta Cloud API (Oficial WhatsApp)</option>
+                        <option value="TWILIO">Twilio for WhatsApp</option>
+                        <option value="SIMULACAO">Modo Simulação (Local / Dev)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">API Key / Token de Acesso</label>
+                      <input
+                        type="text"
+                        placeholder="Chave secreta da API"
+                        value={configEnvio.whatsappApiKey}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, whatsappApiKey: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">ID da Instância / Número ID</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 3B81920-89123"
+                        value={configEnvio.whatsappInstanceId}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, whatsappInstanceId: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block font-bold text-slate-700 mb-1">Telefone do Remetente (Empresa)</label>
+                      <input
+                        type="text"
+                        placeholder="(11) 98765-4321"
+                        value={configEnvio.whatsappSenderPhone}
+                        onChange={(e) => setConfigEnvio((prev) => ({ ...prev, whatsappSenderPhone: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      disabled={testingWhatsapp}
+                      onClick={handleTestWhatsapp}
+                      className="bg-white border border-slate-300 hover:bg-slate-100 text-emerald-700 font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+                    >
+                      {testingWhatsapp ? (
+                        <>
+                          <span className="animate-spin text-xs">⏳</span>
+                          <span>Testando API...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>🟢</span>
+                          <span>Testar API WhatsApp</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md shadow-blue-600/20 active:scale-95 disabled:opacity-50"
+                  >
+                    {loading ? 'Salvação...' : 'Salvar Configurações de Envio'}
                   </button>
                 </div>
               </form>

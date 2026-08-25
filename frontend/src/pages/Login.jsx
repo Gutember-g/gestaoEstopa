@@ -10,7 +10,6 @@ export default function Login() {
 
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
-  const [tenantId, setTenantId] = useState('empresa_demo');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
@@ -18,25 +17,20 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/login', { username, password, tenantId });
+      const res = await api.post('/auth/login', { username, password });
       if (res.data?.accessToken) {
         setAccessToken(res.data.accessToken);
-        localStorage.setItem('tenantId', tenantId);
+        const resolvedTenant = res.data.tenantId || 'empresa_demo';
+        localStorage.setItem('tenantId', resolvedTenant);
         showSuccess('Autenticado com sucesso!');
         navigate('/dashboard');
       }
     } catch (err) {
       console.error('Erro ao realizar login:', err);
-      showError(err.response?.data?.message || 'Falha na autenticação. Verifique os dados ou entre no modo demo.');
+      showError(err.response?.data?.message || 'Falha na autenticação. Verifique suas credenciais de acesso.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoMode = () => {
-    localStorage.setItem('tenantId', tenantId || 'empresa_demo');
-    showSuccess('Acessando no modo de demonstração local.');
-    navigate('/dashboard');
   };
 
   return (
@@ -83,44 +77,14 @@ export default function Login() {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Tenant (Empresa)
-            </label>
-            <select
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 text-sm text-blue-400 font-semibold rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-            >
-              <option value="empresa_demo">Empresa Demo</option>
-              <option value="filial_sp">Filial SP</option>
-              <option value="filial_rj">Filial RJ</option>
-            </select>
-          </div>
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-blue-600/30 active:scale-[0.98] transition-all disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-blue-600/30 active:scale-[0.98] transition-all disabled:opacity-50 mt-2"
           >
             {loading ? 'Entrando...' : 'Entrar no Sistema'}
           </button>
         </form>
-
-        <div className="relative flex py-1 items-center">
-          <div className="flex-grow border-t border-slate-800"></div>
-          <span className="flex-shrink mx-4 text-[11px] text-slate-500 font-semibold uppercase tracking-wider">ou</span>
-          <div className="flex-grow border-t border-slate-800"></div>
-        </div>
-
-        {/* Demo Fallback Action */}
-        <button
-          type="button"
-          onClick={handleDemoMode}
-          className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs border border-slate-700 transition-all active:scale-[0.98]"
-        >
-          🚀 Acessar Modo Demonstração (Sem Login)
-        </button>
       </div>
     </div>
   );

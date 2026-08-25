@@ -1,5 +1,6 @@
 package com.erp.multitenant.controller;
 
+import com.erp.multitenant.config.TenantContext;
 import com.erp.multitenant.model.Cliente;
 import com.erp.multitenant.repository.ClienteRepository;
 import com.erp.multitenant.service.ClienteExportService;
@@ -28,8 +29,55 @@ public class ClienteController {
 
     @GetMapping
     public ResponseEntity<List<Cliente>> getClientes() {
-        List<Cliente> clientes = clienteRepository.findByTenantId("empresa_demo");
+        String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isBlank()) tenantId = "empresa_demo";
+        List<Cliente> clientes = clienteRepository.findByTenantId(tenantId);
         return ResponseEntity.ok(clientes);
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createCliente(@RequestBody Cliente cliente) {
+        if (cliente.getNome() == null || cliente.getNome().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Nome / Razão Social é obrigatório."));
+        }
+        if (cliente.getCpfCnpj() == null || cliente.getCpfCnpj().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "CPF / CNPJ é obrigatório."));
+        }
+
+        String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isBlank()) tenantId = "empresa_demo";
+        cliente.setTenantId(tenantId);
+        if (cliente.getCriadoEm() == null) {
+            cliente.setCriadoEm(java.time.LocalDateTime.now());
+        }
+        Cliente saved = clienteRepository.save(cliente);
+        return ResponseEntity.ok(saved);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateCliente(@PathVariable Long id, @RequestBody Cliente cliente) {
+        if (cliente.getNome() == null || cliente.getNome().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Nome / Razão Social é obrigatório."));
+        }
+        if (cliente.getCpfCnpj() == null || cliente.getCpfCnpj().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "CPF / CNPJ é obrigatório."));
+        }
+
+        String tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null || tenantId.isBlank()) tenantId = "empresa_demo";
+        cliente.setId(id);
+        cliente.setTenantId(tenantId);
+        if (cliente.getCriadoEm() == null) {
+            cliente.setCriadoEm(java.time.LocalDateTime.now());
+        }
+        Cliente saved = clienteRepository.save(cliente);
+        return ResponseEntity.ok(saved);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCliente(@PathVariable Long id) {
+        clienteRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/importar")

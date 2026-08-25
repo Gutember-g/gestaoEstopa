@@ -111,4 +111,26 @@ public class ParcelaDTO {
     public void setDesconto(BigDecimal desconto) {
         this.desconto = desconto;
     }
+
+    public static ParcelaDTO fromEntity(com.erp.multitenant.model.Parcela p) {
+        if (p == null) return null;
+        String cNome = (p.getVenda() != null && p.getVenda().getCliente() != null) ? p.getVenda().getCliente().getNome() : "";
+        String cCpfCnpj = (p.getVenda() != null && p.getVenda().getCliente() != null) ? p.getVenda().getCliente().getCpfCnpj() : "";
+        BigDecimal desc = (p.getVenda() != null) ? p.getVenda().getDesconto() : BigDecimal.ZERO;
+        Long vId = (p.getVenda() != null) ? p.getVenda().getId() : null;
+        String st = (p.getStatus() != null) ? p.getStatus().name() : "PENDENTE";
+
+        return new ParcelaDTO(
+                p.getId(),
+                vId,
+                p.getNumeroSequencial(),
+                p.getValor(),
+                p.getDataVencimento(),
+                p.getDataPagamento(),
+                st,
+                cNome,
+                cCpfCnpj,
+                desc
+        );
+    }
 }

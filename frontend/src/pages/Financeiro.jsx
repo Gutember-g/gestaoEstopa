@@ -19,73 +19,10 @@ export default function Financeiro() {
   const [filterStatus, setFilterStatus] = useState('TODAS');
   const [selectedVendaDetails, setSelectedVendaDetails] = useState(null);
 
-  // Local parcelas state for status updates
-  const [localParcelas, setLocalParcelas] = useState([
-    {
-      id: 1,
-      vendaId: 101,
-      numeroSequencial: 1,
-      valor: 27.50,
-      dataVencimento: '2026-08-05',
-      dataPagamento: '2026-08-05',
-      status: 'PAGO',
-      clienteNome: 'Distribuidora Silva & Cia',
-      cpfCnpj: '12.345.678/0001-90',
-      desconto: 0.00,
-      itens: [
-        { sku: 'SKU-001', nomeProduto: 'Estopa Branca Premium 1kg', custoUnitario: 8.50, precoUnitario: 15.00, quantidade: 1 },
-        { sku: 'SKU-004', nomeProduto: 'Pano de Chão Alvejado 10 un', custoUnitario: 12.00, precoUnitario: 25.00, quantidade: 1 },
-      ],
-    },
-    {
-      id: 2,
-      vendaId: 101,
-      numeroSequencial: 2,
-      valor: 27.50,
-      dataVencimento: '2026-09-05',
-      dataPagamento: null,
-      status: 'PENDENTE',
-      clienteNome: 'Distribuidora Silva & Cia',
-      cpfCnpj: '12.345.678/0001-90',
-      desconto: 0.00,
-      itens: [
-        { sku: 'SKU-001', nomeProduto: 'Estopa Branca Premium 1kg', custoUnitario: 8.50, precoUnitario: 15.00, quantidade: 1 },
-        { sku: 'SKU-004', nomeProduto: 'Pano de Chão Alvejado 10 un', custoUnitario: 12.00, precoUnitario: 25.00, quantidade: 1 },
-      ],
-    },
-    {
-      id: 3,
-      vendaId: 102,
-      numeroSequencial: 1,
-      valor: 105.00,
-      dataVencimento: '2026-07-15',
-      dataPagamento: null,
-      status: 'ATRASADO',
-      clienteNome: 'Auto Peças Modelo Ltda',
-      cpfCnpj: '98.765.432/0001-10',
-      desconto: 10.00,
-      itens: [
-        { sku: 'SKU-003', nomeProduto: 'Retalho de Malha Algodão 5kg', custoUnitario: 22.00, precoUnitario: 42.00, quantidade: 5 },
-      ],
-    },
-    {
-      id: 4,
-      vendaId: 102,
-      numeroSequencial: 2,
-      valor: 105.00,
-      dataVencimento: '2026-08-15',
-      dataPagamento: null,
-      status: 'PENDENTE',
-      clienteNome: 'Auto Peças Modelo Ltda',
-      cpfCnpj: '98.765.432/0001-10',
-      desconto: 10.00,
-      itens: [
-        { sku: 'SKU-003', nomeProduto: 'Retalho de Malha Algodão 5kg', custoUnitario: 22.00, precoUnitario: 42.00, quantidade: 5 },
-      ],
-    },
-  ]);
+  // Local parcelas state for UI updates
+  const [localParcelas, setLocalParcelas] = useState([]);
 
-  const { data: parcelasRaw = [], isFetching } = useQuery({
+  const { data: parcelasRaw = [], isFetching, refetch: refetchParcelas } = useQuery({
     queryKey: ['parcelas', filterPeriod.mes, filterPeriod.ano, filterStatus],
     queryFn: async () => {
       try {
@@ -98,19 +35,9 @@ export default function Financeiro() {
         });
         if (Array.isArray(res.data)) return res.data;
         if (res.data && Array.isArray(res.data.content)) return res.data.content;
-        return localParcelas;
+        return [];
       } catch {
-        return localParcelas.filter((p) => {
-          if (filterStatus !== 'TODAS' && p.status !== filterStatus) return false;
-          if (!p.dataVencimento) return true;
-          const parts = p.dataVencimento.split('-');
-          if (parts.length >= 2) {
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10);
-            return month === filterPeriod.mes && year === filterPeriod.ano;
-          }
-          return true;
-        });
+        return [];
       }
     },
   });
