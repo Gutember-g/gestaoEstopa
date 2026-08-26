@@ -2,7 +2,9 @@ com\erp\multitenant\security\JwtProvider.class
 com\erp\multitenant\ErpApplication.class
 com\erp\multitenant\security\TenantFilter.class
 com\erp\multitenant\controller\DashboardController.class
+com\erp\multitenant\dto\EmpresaDTO.class
 com\erp\multitenant\repository\ProdutoRepository.class
+com\erp\multitenant\controller\PerfilController.class
 com\erp\multitenant\repository\VendaEnvioHistoricoRepository.class
 com\erp\multitenant\dto\VendaEnvioRequestDTO.class
 com\erp\multitenant\controller\ConfiguracaoEnvioController.class
@@ -11,6 +13,7 @@ com\erp\multitenant\model\Venda.class
 com\erp\multitenant\service\ConfiguracaoEnvioService.class
 com\erp\multitenant\model\StatusParcela.class
 com\erp\multitenant\model\VendaEnvioHistorico.class
+com\erp\multitenant\controller\ProdutoController.class
 com\erp\multitenant\model\Cliente.class
 com\erp\multitenant\controller\AuthController.class
 com\erp\multitenant\dto\VendaEnvioHistoricoDTO.class
@@ -27,11 +30,16 @@ com\erp\multitenant\service\ClienteExportService.class
 com\erp\multitenant\config\TenantContext.class
 com\erp\multitenant\repository\ConfiguracaoEnvioRepository.class
 com\erp\multitenant\dto\TopProdutoDTO.class
+com\erp\multitenant\dto\NotificacaoDTO.class
 com\erp\multitenant\controller\ClienteController.class
 com\erp\multitenant\repository\RefreshTokenRepository.class
 com\erp\multitenant\controller\VendaController.class
+com\erp\multitenant\dto\AlterarSenhaDTO.class
 com\erp\multitenant\repository\ParcelaRepository.class
 com\erp\multitenant\service\VendaEnvioService.class
+com\erp\multitenant\dto\PerfilDTO.class
+com\erp\multitenant\controller\HealthController.class
+com\erp\multitenant\controller\NotificacaoController.class
 com\erp\multitenant\dto\VendaDTO.class
 com\erp\multitenant\model\ConfiguracaoEnvio.class
 com\erp\multitenant\dto\TopClienteDTO.class
@@ -55,4 +63,5 @@ com\erp\multitenant\repository\VendaRepository.class
 com\erp\multitenant\controller\FinanceiroController.class
 com\erp\multitenant\security\JwtAuthenticationFilter.class
 com\erp\multitenant\service\VendaService.class
+com\erp\multitenant\controller\EmpresaController.class
 com\erp\multitenant\dto\AlertasDTO.class

@@ -14,6 +14,7 @@ C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multi
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\service\ConfiguracaoEnvioService.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\service\RefreshTokenService.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\TopProdutoDTO.java
+C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\controller\HealthController.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\controller\ClienteController.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\config\SecurityConfig.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\AlertasDTO.java

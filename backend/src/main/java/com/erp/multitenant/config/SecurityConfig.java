@@ -60,6 +60,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/h2-console/**",
                     "/auth/**",
+                    "/health",
+                    "/api/health",
                     "/actuator/health",
                     "/error",
                     "/perfil/**",

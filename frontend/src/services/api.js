@@ -79,9 +79,9 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      // Tenta renovar o token via refreshToken armazenado no Cookie HTTP-Only
+      const refreshUrl = `${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`;
       const refreshResponse = await axios.post(
-        '/api/auth/refresh',
+        refreshUrl,
         {},
         {
           withCredentials: true,

@@ -2,6 +2,7 @@ package com.erp.multitenant.service;
 
 import com.erp.multitenant.model.RefreshToken;
 import com.erp.multitenant.repository.RefreshTokenRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,9 @@ public class RefreshTokenService {
     public static final long DEFAULT_REFRESH_EXPIRATION_DAYS = 7;
 
     private final RefreshTokenRepository refreshTokenRepository;
+
+    @Value("${cookie.same-site:None}")
+    private String sameSite;
 
     public RefreshTokenService(RefreshTokenRepository refreshTokenRepository) {
         this.refreshTokenRepository = refreshTokenRepository;
@@ -97,7 +101,7 @@ public class RefreshTokenService {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, refreshTokenValue)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Strict")
+                .sameSite(sameSite)
                 .path(REFRESH_TOKEN_PATH)
                 .maxAge(maxAgeSeconds)
                 .build();
@@ -107,7 +111,7 @@ public class RefreshTokenService {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, "")
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Strict")
+                .sameSite(sameSite)
                 .path(REFRESH_TOKEN_PATH)
                 .maxAge(0)
                 .build();
