@@ -31,7 +31,15 @@ tools/
 .env
 .env.local
 .env.*.local
+.env.development
 .env.production
+.env.test
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+
 
 # Build Outputs
 target/

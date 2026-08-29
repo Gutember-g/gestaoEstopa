@@ -8,7 +8,7 @@ Este documento descreve todas as variáveis de ambiente necessárias para a impl
 
 | Nome da Variável | Descrição | Exemplo em Produção | Obrigatório? |
 | :--- | :--- | :--- | :---: |
-| `VITE_API_URL` | URL completa da API backend no Render (incluindo o sufixo `/api`) | `https://erp-multitenant-backend.onrender.com/api` | **Sim** |
+| `VITE_API_URL` | URL completa da API backend no Render (incluindo o sufixo `/api`) | `https://seu-backend-onrender.com/api` | **Sim** |
 
 ---
 
@@ -18,19 +18,20 @@ Este documento descreve todas as variáveis de ambiente necessárias para a impl
 | :--- | :--- | :--- | :---: |
 | `SPRING_PROFILES_ACTIVE` | Perfil ativo do Spring Boot | `prod` | **Sim** |
 | `PORT` | Porta HTTP do servidor web | `8080` *(ou atribuída dinamicamente pelo Render)* | **Sim** |
-| `DATABASE_URL` | URL JDBC de conexão com o PostgreSQL do Neon *(Usar a URL da porta com `-pooler`)* | `jdbc:postgresql://ep-xxxx-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require` | **Sim** |
-| `DB_USER` | Usuário do banco de dados PostgreSQL Neon | `seu_usuario_neon` | **Sim** |
-| `DB_PASS` | Senha do banco de dados PostgreSQL Neon | `sua_senha_neon` | **Sim** |
+| `DATABASE_URL` | URL JDBC de conexão com o PostgreSQL do Neon (Pooled Connection com `-pooler`) | `jdbc:postgresql://<host>/<database>?sslmode=require` | **Sim** |
+| `DB_USER` | Usuário do banco de dados PostgreSQL Neon | `<seu_usuario>` | **Sim** |
+| `DB_PASS` | Senha do banco de dados PostgreSQL Neon | `<sua_senha>` | **Sim** |
 | `DB_POOL_SIZE` | Tamanho máximo do pool de conexões do HikariCP | `10` | Não (Default: 10) |
 | `DB_POOL_MIN_IDLE` | Conexões mínimas inativas no pool HikariCP | `2` | Não (Default: 2) |
-| `JWT_SECRET_PROD` | Chave secreta de alta entropia para assinatura dos tokens JWT | `secret_key_prod_random_string_min_32_chars_123` | **Sim** |
+| `JWT_SECRET_PROD` | Chave secreta de alta entropia para assinatura dos tokens JWT | `<sua_chave_secreta_jwt_min_32_chars>` | **Sim** |
 | `ALLOWED_ORIGINS` | Origem(ns) frontend autorizadas pelo CORS (separadas por vírgula) | `https://seu-projeto.vercel.app` | **Sim** |
 | `COOKIE_SAME_SITE` | Política SameSite do Cookie de Refresh Token | `None` | **Sim** *(para requisições cross-site)* |
 
 ---
 
-## 🐘 Banco de Dados (Neon Console)
+## 🐘 Banco de Dados (Configuração do Neon)
 
-- Ao criar um projeto no **Neon**, obtenha as credenciais na aba **Connection Details**.
-- **Dica de Performance / Scalability**: Selecione a opção **Pooled connection** (URL contendo `-pooler` no hostname, ex: `ep-xyz-pooler.us-east-2.aws.neon.tech`).
-- Certifique-se de que a string de conexão inclui o parâmetro `sslmode=require`.
+- **Projeto**: `<nome_do_projeto_neon>`
+- **Database**: `erp_prod`
+- **Host (Pooled)**: `<ep-xxxx-pooler.region.aws.neon.tech>`
+- **SSL Mode**: `sslmode=require`
