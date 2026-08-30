@@ -26,10 +26,14 @@ logging:
     org.hibernate.SQL: DEBUG
 
 jwt:
-  secret: dev_secret_key_super_segura_para_desenvolvimento_local_123456789
+  secret: ${JWT_SECRET_DEV:dev_secret_key_super_segura_para_desenvolvimento_local_123456789}
   expiration: 900000 # 15 minutos (15 * 60 * 1000 ms)
   issuer: gestao-estopa-api
   audience: gestao-estopa-web
 
 cors:
-  allowed-origins: "http://localhost:5173"
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+
+cookie:
+  same-site: ${COOKIE_SAME_SITE:Lax}
+
