@@ -87,10 +87,24 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
+        // SEGURANÇA: Com allowCredentials(true) ativado, evitamos wildcards amplos (ex: https://*.vercel.app)
+        // para impedir que aplicações de terceiros no mesmo domínio compartilhado tenham acesso aos cookies/tokens.
+        // Usamos setAllowedOrigins para origens fixas e setAllowedOriginPatterns apenas para padrões de preview restritos ao projeto.
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                                      .map(String::trim)
+                                     .filter(s -> !s.isBlank())
                                      .toList();
-        configuration.setAllowedOrigins(origins);
+
+        List<String> exactOrigins = origins.stream().filter(o -> !o.contains("*")).toList();
+        List<String> patternOrigins = origins.stream().filter(o -> o.contains("*")).toList();
+
+        if (!exactOrigins.isEmpty()) {
+            configuration.setAllowedOrigins(exactOrigins);
+        }
+        if (!patternOrigins.isEmpty()) {
+            configuration.setAllowedOriginPatterns(patternOrigins);
+        }
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Tenant-ID", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
         configuration.setExposedHeaders(List.of("Authorization", "X-Tenant-ID"));

@@ -1,8 +1,20 @@
 import axios from 'axios';
 import { getAccessToken, setAccessToken, clearAccessToken } from './authStore';
 
+const getSanitizedApiUrl = () => {
+  let url = import.meta.env.VITE_API_URL || '/api';
+  url = url.trim();
+  if (url.startsWith('VITE_API_URL=')) {
+    url = url.replace(/^VITE_API_URL=/, '').trim();
+  }
+  url = url.replace(/^(https?:)\/([^\/])/, '$1//$2');
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+};
+
+const BASE_URL = getSanitizedApiUrl();
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -79,7 +91,7 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const refreshUrl = `${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`;
+      const refreshUrl = `${BASE_URL}/auth/refresh`;
       const refreshResponse = await axios.post(
         refreshUrl,
         {},

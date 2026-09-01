@@ -30,7 +30,7 @@ jwt:
   audience: ${JWT_AUDIENCE:gestao-estopa-web}
 
 cors:
-  allowed-origins: ${ALLOWED_ORIGINS:https://app.seudominio.com}
+  allowed-origins: ${ALLOWED_ORIGINS:https://gestao-estopa-pi.vercel.app}
 
 cookie:
   same-site: ${COOKIE_SAME_SITE:None}

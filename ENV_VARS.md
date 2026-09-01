@@ -1,37 +1,60 @@
-# 🔐 Guia de Variáveis de Ambiente (ENV_VARS.md)
+# 🔐 Guia de Variáveis de Ambiente & Ambientes (ENV_VARS.md)
 
-Este documento descreve todas as variáveis de ambiente necessárias para a implantação da aplicação em produção no **Vercel** (Frontend), **Render** (Backend) e **Neon** (PostgreSQL).
-
----
-
-## 🎨 Frontend (Vercel Dashboard -> Environment Variables)
-
-| Nome da Variável | Descrição | Exemplo em Produção | Obrigatório? |
-| :--- | :--- | :--- | :---: |
-| `VITE_API_URL` | URL completa da API backend no Render (incluindo o sufixo `/api`) | `https://seu-backend-onrender.com/api` | **Sim** |
+Este documento descreve como os dois ambientes (**Desenvolvimento** e **Produção**) estão estruturados nas plataformas **Vercel** (Frontend), **Render** (Backend) e **Neon** (PostgreSQL).
 
 ---
 
-## ⚙️ Backend (Render Dashboard -> Environment Variables)
+## 🔀 Estrutura de Branches & Ambientes
 
-| Nome da Variável | Descrição | Exemplo em Produção | Obrigatório? |
-| :--- | :--- | :--- | :---: |
-| `SPRING_PROFILES_ACTIVE` | Perfil ativo do Spring Boot | `prod` | **Sim** |
-| `PORT` | Porta HTTP do servidor web | `8080` *(ou atribuída dinamicamente pelo Render)* | **Sim** |
-| `DATABASE_URL` | URL JDBC de conexão com o PostgreSQL do Neon (Pooled Connection com `-pooler`) | `jdbc:postgresql://<host>/<database>?sslmode=require` | **Sim** |
-| `DB_USER` | Usuário do banco de dados PostgreSQL Neon | `<seu_usuario>` | **Sim** |
-| `DB_PASS` | Senha do banco de dados PostgreSQL Neon | `<sua_senha>` | **Sim** |
-| `DB_POOL_SIZE` | Tamanho máximo do pool de conexões do HikariCP | `10` | Não (Default: 10) |
-| `DB_POOL_MIN_IDLE` | Conexões mínimas inativas no pool HikariCP | `2` | Não (Default: 2) |
-| `JWT_SECRET_PROD` | Chave secreta de alta entropia para assinatura dos tokens JWT | `<sua_chave_secreta_jwt_min_32_chars>` | **Sim** |
-| `ALLOWED_ORIGINS` | Origem(ns) frontend autorizadas pelo CORS (separadas por vírgula) | `https://seu-projeto.vercel.app` | **Sim** |
-| `COOKIE_SAME_SITE` | Política SameSite do Cookie de Refresh Token | `None` | **Sim** *(para requisições cross-site)* |
+| Ambiente | Branch Git | Vercel (Frontend) | Render (Backend) | Neon (PostgreSQL) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Produção** | `main` | Production Environment | Web Service (`prod`) | Database: `erp_prod` |
+| **Desenvolvimento** | `Dev` | Preview / Dev Environment | Web Service (`dev`) | Database: `erp_dev` |
 
 ---
 
-## 🐘 Banco de Dados (Configuração do Neon)
+## 🎨 1. Frontend (Vercel Dashboard)
 
-- **Projeto**: `<nome_do_projeto_neon>`
-- **Database**: `erp_prod`
-- **Host (Pooled)**: `<ep-xxxx-pooler.region.aws.neon.tech>`
+### Ambiente de Produção (Branch `main`):
+- **Environment Variable**: `VITE_API_URL`
+- **Valor**: `https://erp-multitenant-backend.onrender.com/api` *(URL do Backend de Produção)*
+
+### Ambiente de Desenvolvimento (Branch `Dev`):
+- **Environment Variable**: `VITE_API_URL`
+- **Valor**: `https://erp-multitenant-backend-dev.onrender.com/api` *(URL do Backend de Desenvolvimento)*
+
+---
+
+## ⚙️ 2. Backend (Render Dashboard)
+
+### Serviço 1: Backend de Produção (`erp-multitenant-backend`)
+- **Branch**: `main`
+- **Environment Variables**:
+  - `SPRING_PROFILES_ACTIVE`: `prod`
+  - `DATABASE_URL`: `jdbc:postgresql://ep-flat-meadow-af0vk2kj-pooler.c-2.us-west-2.aws.neon.tech/erp_prod?sslmode=require`
+  - `DB_USER`: `neondb_owner`
+  - `DB_PASS`: `npg_hKD1elJ7VyGZ`
+  - `JWT_SECRET_PROD`: `8f4a1c9e3b7d5f2a6c8e0b4d9a1f3c7e5b2d8a4c9f1e3b7d5f2a6c8e0b4d9a1f`
+  - `ALLOWED_ORIGINS`: `https://seu-frontend.vercel.app`
+  - `COOKIE_SAME_SITE`: `None`
+
+### Serviço 2: Backend de Desenvolvimento (`erp-multitenant-backend-dev`)
+- **Branch**: `Dev`
+- **Environment Variables**:
+  - `SPRING_PROFILES_ACTIVE`: `prod` *(ou `dev` se usar banco em memória H2 local)*
+  - `DATABASE_URL`: `jdbc:postgresql://ep-flat-meadow-af0vk2kj-pooler.c-2.us-west-2.aws.neon.tech/erp_dev?sslmode=require`
+  - `DB_USER`: `neondb_owner`
+  - `DB_PASS`: `npg_hKD1elJ7VyGZ`
+  - `JWT_SECRET_PROD`: `dev_secret_key_super_segura_para_desenvolvimento_local_123456789`
+  - `ALLOWED_ORIGINS`: `https://seu-frontend-dev.vercel.app,http://localhost:5173`
+  - `COOKIE_SAME_SITE`: `None`
+
+---
+
+## 🐘 3. Banco de Dados (Neon PostgreSQL)
+
+- **Projeto**: `gestao-estopa` (`billowing-glade-59885269`)
+- **Host (Pooled Endpoint)**: `ep-flat-meadow-af0vk2kj-pooler.c-2.us-west-2.aws.neon.tech`
+- **Banco de Produção**: `erp_prod`
+- **Banco de Desenvolvimento**: `erp_dev`
 - **SSL Mode**: `sslmode=require`
