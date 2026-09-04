@@ -30,7 +30,7 @@ jwt:
   audience: ${JWT_AUDIENCE:gestao-estopa-web}
 
 cors:
-  allowed-origins: ${ALLOWED_ORIGINS:https://gestao-estopa-pi.vercel.app}
+  allowed-origins: ${ALLOWED_ORIGINS:https://gestao-estopa-pi.vercel.app,https://gestao-estopa-git-*.vercel.app,https://*.vercel.app,http://localhost:5173,http://localhost:3000}
 
 cookie:
   same-site: ${COOKIE_SAME_SITE:None}
