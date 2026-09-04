@@ -24,7 +24,6 @@ public class TenantFilter extends OncePerRequestFilter {
         
         // Requisições HTTP OPTIONS (preflight CORS) devem ser liberadas sem validação de tenant
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
             filterChain.doFilter(request, response);
             return;
         }

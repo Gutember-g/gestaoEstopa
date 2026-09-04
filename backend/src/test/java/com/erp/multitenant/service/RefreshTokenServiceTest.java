@@ -45,7 +45,7 @@ class RefreshTokenServiceTest {
         assertEquals(rawToken, cookie.getValue());
         assertTrue(cookie.isHttpOnly());
         assertTrue(cookie.isSecure());
-        assertEquals("Strict", cookie.getSameSite());
+        assertEquals("None", cookie.getSameSite());
         assertEquals("/api/auth/refresh", cookie.getPath());
         assertEquals(7 * 24 * 3600, cookie.getMaxAge().getSeconds());
     }

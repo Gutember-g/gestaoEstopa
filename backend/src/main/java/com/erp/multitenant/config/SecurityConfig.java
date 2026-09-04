@@ -20,6 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 @Configuration
 @EnableWebSecurity
@@ -87,16 +88,28 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // SEGURANÇA: Com allowCredentials(true) ativado, evitamos wildcards amplos (ex: https://*.vercel.app)
-        // para impedir que aplicações de terceiros no mesmo domínio compartilhado tenham acesso aos cookies/tokens.
-        // Usamos setAllowedOrigins para origens fixas e setAllowedOriginPatterns apenas para padrões de preview restritos ao projeto.
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+        // Origens e padrões permitidos por padrão (Vercel Prod, Previews Vercel e Localhost)
+        List<String> defaultOrigins = List.of(
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://localhost:8080",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:3000",
+            "https://gestao-estopa-pi.vercel.app",
+            "https://gestao-estopa-git-*.vercel.app",
+            "https://*.vercel.app"
+        );
+
+        List<String> configuredOrigins = Arrays.stream(allowedOrigins.split(","))
                                      .map(String::trim)
                                      .filter(s -> !s.isBlank())
                                      .toList();
 
-        List<String> exactOrigins = origins.stream().filter(o -> !o.contains("*")).toList();
-        List<String> patternOrigins = origins.stream().filter(o -> o.contains("*")).toList();
+        Set<String> allOrigins = new java.util.LinkedHashSet<>(configuredOrigins);
+        allOrigins.addAll(defaultOrigins);
+
+        List<String> exactOrigins = allOrigins.stream().filter(o -> !o.contains("*")).toList();
+        List<String> patternOrigins = allOrigins.stream().filter(o -> o.contains("*")).toList();
 
         if (!exactOrigins.isEmpty()) {
             configuration.setAllowedOrigins(exactOrigins);
@@ -110,7 +123,6 @@ public class SecurityConfig {
         configuration.setExposedHeaders(List.of("Authorization", "X-Tenant-ID"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
