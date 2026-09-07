@@ -533,16 +533,29 @@ export default function Vendas() {
         responseType: 'blob',
       });
       const mime = formato === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf';
+      const ext = formato === 'xlsx' ? 'xlsx' : 'pdf';
       const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
-      window.open(url, '_blank');
-      showSuccess(`Documento (${formato.toUpperCase()}) da Venda #${vendaId} gerado com sucesso! ✓`);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `pedido_venda_${vendaId}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showSuccess(`Documento (${formato.toUpperCase()}) da Venda #${vendaId} baixado com sucesso! ✓`);
     } catch {
       // Fallback to legacy pdf route
       try {
         const res = await api.get(`/vendas/${vendaId}/pdf`, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-        window.open(url, '_blank');
-        showSuccess(`PDF da Venda #${vendaId} gerado com sucesso! ✓`);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `pedido_venda_${vendaId}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        showSuccess(`PDF da Venda #${vendaId} baixado com sucesso! ✓`);
       } catch {
         showError(`Não foi possível gerar o documento da venda #${vendaId}`);
       }
@@ -753,6 +766,20 @@ export default function Vendas() {
                         title="Histórico de Envios"
                       >
                         📩
+                      </button>
+                      <button
+                        onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
+                        className="p-1 text-slate-500 hover:text-blue-600"
+                        title="Baixar PDF da Venda"
+                      >
+                        📄
+                      </button>
+                      <button
+                        onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
+                        className="p-1 text-slate-500 hover:text-emerald-600"
+                        title="Baixar Excel (XLSX) da Venda"
+                      >
+                        📊
                       </button>
                       <button
                         onClick={() => handleDuplicateVenda(v)}
