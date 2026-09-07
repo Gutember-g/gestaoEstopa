@@ -17,35 +17,35 @@ import java.util.List;
 @Repository
 public interface VendaRepository extends JpaRepository<Venda, Long> {
 
-    @Query("SELECT SUM(v.valorTotal) FROM Venda v WHERE v.tenantId = :tenantId AND v.dataVenda >= :dataInicio")
+    @Query("SELECT SUM(v.valorTotal) FROM Venda v WHERE v.tenantId = :tenantId AND v.dataVenda >= :dataInicio AND (v.status = 'CONFIRMADA' OR v.status IS NULL)")
     BigDecimal sumValorTotalByTenantAndDataAfter(@Param("tenantId") String tenantId, @Param("dataInicio") LocalDateTime dataInicio);
 
-    @Query("SELECT SUM(v.valorTotal) FROM Venda v WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano")
+    @Query("SELECT SUM(v.valorTotal) FROM Venda v WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano AND (v.status = 'CONFIRMADA' OR v.status IS NULL)")
     BigDecimal sumValorTotalByTenantAndMesAno(@Param("tenantId") String tenantId, @Param("mes") Integer mes, @Param("ano") Integer ano);
 
-    @Query("SELECT SUM(v.lucroLiquido) FROM Venda v WHERE v.tenantId = :tenantId AND v.dataVenda >= :dataInicio")
+    @Query("SELECT SUM(v.lucroLiquido) FROM Venda v WHERE v.tenantId = :tenantId AND v.dataVenda >= :dataInicio AND (v.status = 'CONFIRMADA' OR v.status IS NULL)")
     BigDecimal sumLucroLiquidoByTenantAndDataAfter(@Param("tenantId") String tenantId, @Param("dataInicio") LocalDateTime dataInicio);
 
-    @Query("SELECT SUM(v.lucroLiquido) FROM Venda v WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano")
+    @Query("SELECT SUM(v.lucroLiquido) FROM Venda v WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano AND (v.status = 'CONFIRMADA' OR v.status IS NULL)")
     BigDecimal sumLucroLiquidoByTenantAndMesAno(@Param("tenantId") String tenantId, @Param("mes") Integer mes, @Param("ano") Integer ano);
 
     @Query("SELECT new com.erp.multitenant.dto.TopClienteDTO(c.id, c.nome, SUM(v.valorTotal)) " +
            "FROM Venda v JOIN v.cliente c " +
-           "WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano " +
+           "WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano AND (v.status = 'CONFIRMADA' OR v.status IS NULL) " +
            "GROUP BY c.id, c.nome " +
            "ORDER BY SUM(v.valorTotal) DESC")
     List<TopClienteDTO> findTopClientesByMesAno(@Param("tenantId") String tenantId, @Param("mes") Integer mes, @Param("ano") Integer ano);
 
     @Query("SELECT new com.erp.multitenant.dto.TopProdutoDTO(i.id, 'SKU-00' || i.id, i.nomeProduto, SUM(i.quantidade), SUM(i.precoNoMomento * i.quantidade)) " +
            "FROM ItemVenda i JOIN i.venda v " +
-           "WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano " +
+           "WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND EXTRACT(MONTH FROM v.dataVenda) = :mes AND EXTRACT(YEAR FROM v.dataVenda) = :ano AND (v.status = 'CONFIRMADA' OR v.status IS NULL) " +
            "GROUP BY i.id, i.nomeProduto " +
            "ORDER BY SUM(i.quantidade) DESC")
     List<TopProdutoDTO> findTopProdutosByMesAno(@Param("tenantId") String tenantId, @Param("mes") Integer mes, @Param("ano") Integer ano);
 
     @Query("SELECT new com.erp.multitenant.dto.EvolucaoVendaDTO(CAST(v.dataVenda AS string), SUM(v.valorTotal), SUM(v.lucroLiquido)) " +
            "FROM Venda v " +
-           "WHERE v.tenantId = :tenantId AND v.dataVenda >= :dataInicio " +
+           "WHERE v.tenantId = :tenantId AND v.dataVenda >= :dataInicio AND (v.status = 'CONFIRMADA' OR v.status IS NULL) " +
            "GROUP BY CAST(v.dataVenda AS string) " +
            "ORDER BY CAST(v.dataVenda AS string) ASC")
     List<EvolucaoVendaDTO> findEvolucaoDiaria(@Param("tenantId") String tenantId, @Param("dataInicio") LocalDateTime dataInicio);

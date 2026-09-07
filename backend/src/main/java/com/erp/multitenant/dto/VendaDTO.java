@@ -190,7 +190,7 @@ public class VendaDTO {
         dto.setLucroLiquido(v.getLucroLiquido());
         dto.setPrazoFaturamentoDias(v.getPrazoFaturamentoDias());
         dto.setDataVencimento(v.getDataVencimento());
-        dto.setStatus("PENDENTE");
+        dto.setStatus(v.getStatus() != null ? v.getStatus() : "CONFIRMADA");
         if (v.getItens() != null && !v.getItens().isEmpty()) {
             dto.setItens(v.getItens().stream().map(ItemVendaDTO::fromEntity).toList());
         }

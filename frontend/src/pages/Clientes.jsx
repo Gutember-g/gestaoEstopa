@@ -6,9 +6,11 @@ import api from '../services/api';
 import { formatCurrencyBRL } from '../utils/money';
 import { useToast } from '../context/ToastContext';
 import ActionButton from '../components/ActionButton';
+import { useVendaModal } from '../context/VendaModalContext';
 
 export default function Clientes() {
   const { showSuccess, showError } = useToast();
+  const { openVendaModal } = useVendaModal();
   const navigate = useNavigate();
 
   const [showModal, setShowModal] = useState(false);
@@ -789,9 +791,9 @@ export default function Clientes() {
               <div className="flex gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => {
+                    const cId = historicoCliente.cliente.id;
                     setHistoricoCliente(null);
-                    showSuccess(`Cliente "${historicoCliente.cliente.nome}" pré-selecionado em Nova Venda ✓`);
-                    navigate('/vendas');
+                    openVendaModal({ clienteId: cId });
                   }}
                   className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs active:scale-95 transition-all shadow-sm"
                 >

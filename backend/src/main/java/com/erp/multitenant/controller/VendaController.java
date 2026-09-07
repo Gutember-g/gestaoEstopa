@@ -55,6 +55,12 @@ public class VendaController {
         return ResponseEntity.ok(salva);
     }
 
+    @PutMapping("/{id}/confirmar")
+    public ResponseEntity<VendaDTO> confirmarVenda(@PathVariable("id") Long id) {
+        VendaDTO confirmada = vendaService.confirmarVenda(id);
+        return ResponseEntity.ok(confirmada);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarVenda(@PathVariable("id") Long id) {
         vendaRepository.deleteById(id);

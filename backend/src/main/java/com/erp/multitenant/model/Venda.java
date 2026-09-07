@@ -50,6 +50,8 @@ public class Venda {
     @Column(name = "data_vencimento")
     private LocalDate dataVencimento;
 
+    private String status = "CONFIRMADA";
+
     @OneToMany(mappedBy = "venda", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ItemVenda> itens = new ArrayList<>();
 
@@ -147,5 +149,13 @@ public class Venda {
 
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

@@ -5,9 +5,11 @@ import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../
 import { useToast } from '../context/ToastContext';
 import MonthFilter from '../components/MonthFilter';
 import ActionButton from '../components/ActionButton';
+import { useVendaModal } from '../context/VendaModalContext';
 
 export default function Financeiro() {
   const { showSuccess, showError } = useToast();
+  const { openVendaModal } = useVendaModal();
   const queryClient = useQueryClient();
 
   // Period filter state
@@ -18,10 +20,6 @@ export default function Financeiro() {
 
   const [filterStatus, setFilterStatus] = useState('TODAS');
   const [selectedVendaDetails, setSelectedVendaDetails] = useState(null);
-
-  // Duplication Modal State in Financeiro
-  const [duplicateModalData, setDuplicateModalData] = useState(null);
-  const [isSubmittingDuplicate, setIsSubmittingDuplicate] = useState(false);
 
   // Fetch parcelas from API
   const { data: parcelasRaw = [], isFetching } = useQuery({
@@ -124,63 +122,14 @@ export default function Financeiro() {
     }
   };
 
-  // Item 5: Open duplication modal directly in Financeiro without navigating away
+  // Open reusable sale modal for duplication in Financeiro
   const handleDuplicateFromDetails = () => {
     if (!selectedVendaDetails?.vendaData) {
       showError('Não foi possível carregar os dados completos desta venda para duplicação.');
       return;
     }
-
-    const v = selectedVendaDetails.vendaData;
-    setDuplicateModalData({
-      clienteId: String(v.clienteId || '1'),
-      descontoFormatted: formatCurrencyBRL(v.desconto || 0),
-      prazoFaturamentoOption: String(v.prazoFaturamentoDias || '30'),
-      itens: (v.itens && v.itens.length > 0)
-        ? v.itens.map((it) => ({
-            produtoId: it.produtoId,
-            sku: it.sku || '',
-            nomeProduto: it.nomeProduto,
-            custoNoMomento: it.custoNoMomento || 0,
-            precoNoMomentoFormatted: formatCurrencyBRL(it.precoNoMomento),
-            quantidade: it.quantidade || 1,
-          }))
-        : [{ produtoId: '', sku: '', nomeProduto: '', custoNoMomento: 0, precoNoMomentoFormatted: '', quantidade: 1 }],
-    });
-
+    openVendaModal(selectedVendaDetails.vendaData);
     setSelectedVendaDetails(null);
-  };
-
-  // Submit Duplicated Sale from Financeiro Modal
-  const handleSaveDuplicateVenda = async (e) => {
-    e.preventDefault();
-    if (!duplicateModalData) return;
-    setIsSubmittingDuplicate(true);
-
-    try {
-      const descontoVal = parseCurrencyToNumber(duplicateModalData.descontoFormatted);
-      const payload = {
-        clienteId: parseInt(duplicateModalData.clienteId, 10),
-        desconto: descontoVal,
-        prazoFaturamentoDias: parseInt(duplicateModalData.prazoFaturamentoOption, 10) || 30,
-        itens: duplicateModalData.itens.map((it) => ({
-          produtoId: parseInt(it.produtoId, 10),
-          quantidade: parseInt(it.quantidade, 10) || 1,
-          precoNoMomento: parseCurrencyToNumber(it.precoNoMomentoFormatted),
-        })),
-      };
-
-      await api.post('/vendas', payload);
-      showSuccess('Venda duplicada e salva com sucesso diretamente no Financeiro! ✓');
-      queryClient.invalidateQueries({ queryKey: ['parcelas'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['vendas'] });
-      setDuplicateModalData(null);
-    } catch {
-      showError('Falha ao duplicar a venda. Verifique se os produtos e cliente estão válidos.');
-    } finally {
-      setIsSubmittingDuplicate(false);
-    }
   };
 
   const MESES_NOME = [
@@ -450,85 +399,6 @@ export default function Financeiro() {
                 onClick={() => setSelectedVendaDetails(null)}
               />
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Duplicação de Venda diretamente no Financeiro (Item 5) */}
-      {duplicateModalData && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 w-full max-w-xl space-y-5 shadow-2xl my-auto border border-slate-200 dark:border-slate-800">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Duplicar Venda (No Financeiro)</h2>
-                <p className="text-[11px] text-slate-400">Confirme os dados para lançar uma nova venda idêntica.</p>
-              </div>
-              <button
-                onClick={() => setDuplicateModalData(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveDuplicateVenda} className="space-y-4 text-xs">
-              <div className="space-y-2">
-                <h3 className="font-bold text-slate-700 dark:text-slate-300">Produtos a serem duplicados:</h3>
-                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl divide-y divide-slate-200 dark:divide-slate-700">
-                  {duplicateModalData.itens.map((it, idx) => (
-                    <div key={idx} className="py-2 flex justify-between items-center">
-                      <div>
-                        <div className="font-bold text-slate-800 dark:text-slate-200">{it.nomeProduto}</div>
-                        <div className="text-[10px] text-slate-400">Qtd: {it.quantidade}x | Preço: {it.precoNoMomentoFormatted}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Prazo de Faturamento</label>
-                  <select
-                    value={duplicateModalData.prazoFaturamentoOption}
-                    onChange={(e) => setDuplicateModalData({ ...duplicateModalData, prazoFaturamentoOption: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="0">À Vista (0 dias)</option>
-                    <option value="15">15 dias</option>
-                    <option value="30">30 dias</option>
-                    <option value="60">60 dias</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Desconto</label>
-                  <input
-                    type="text"
-                    value={duplicateModalData.descontoFormatted}
-                    onChange={(e) => setDuplicateModalData({ ...duplicateModalData, descontoFormatted: applyCurrencyMask(e.target.value) })}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-slate-800 dark:text-slate-200"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <ActionButton
-                  label="Cancelar"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setDuplicateModalData(null)}
-                />
-                <ActionButton
-                  label={isSubmittingDuplicate ? 'Salvando...' : 'Confirmar e Gravar Venda'}
-                  icon="✓"
-                  variant="success"
-                  size="sm"
-                  type="submit"
-                  disabled={isSubmittingDuplicate}
-                />
-              </div>
-            </form>
           </div>
         </div>
       )}

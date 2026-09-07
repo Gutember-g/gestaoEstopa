@@ -5,9 +5,11 @@ import api from '../services/api';
 import MonthFilter from '../components/MonthFilter';
 import ActionButton from '../components/ActionButton';
 import { formatCurrencyBRL } from '../utils/money';
+import { useVendaModal } from '../context/VendaModalContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { openVendaModal } = useVendaModal();
   const { activeTab } = useOutletContext() || { activeTab: 'geral' };
   const [selectedVendaDetails, setSelectedVendaDetails] = useState(null);
 
@@ -75,7 +77,7 @@ export default function Dashboard() {
           <MonthFilter onChange={setFilterPeriod} />
 
           <button
-            onClick={() => navigate('/vendas')}
+            onClick={() => openVendaModal()}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
           >
             <span>+</span>
@@ -295,7 +297,7 @@ export default function Dashboard() {
                 icon="+"
                 variant="successSubtle"
                 size="xs"
-                onClick={() => navigate('/vendas?novaVenda=true')}
+                onClick={() => openVendaModal()}
               />
               <button
                 onClick={() => navigate('/vendas')}

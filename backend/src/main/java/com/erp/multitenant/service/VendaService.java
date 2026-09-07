@@ -91,6 +91,9 @@ public class VendaService {
         venda.setDataVencimento(dtVenc);
         venda.setTenantId(tenantId);
 
+        String targetStatus = (dto.getStatus() != null && !dto.getStatus().isBlank()) ? dto.getStatus() : "CONFIRMADA";
+        venda.setStatus(targetStatus);
+
         // Process line items
         venda.getItens().clear();
         if (dto.getItens() != null && !dto.getItens().isEmpty()) {
@@ -107,15 +110,45 @@ public class VendaService {
 
         Venda salva = vendaRepository.save(venda);
 
-        // Create initial financial installment (tb_parcela) for this sale
-        Parcela parcela = new Parcela();
-        parcela.setVenda(salva);
-        parcela.setNumeroSequencial(1);
-        parcela.setValor(salva.getValorTotal());
-        parcela.setDataVencimento(salva.getDataVencimento());
-        parcela.setStatus(StatusParcela.PENDENTE);
-        parcela.setTenantId(tenantId);
-        parcelaRepository.save(parcela);
+        // Create initial financial installment (tb_parcela) ONLY if status is CONFIRMADA
+        if ("CONFIRMADA".equalsIgnoreCase(salva.getStatus())) {
+            boolean hasParcela = parcelaRepository.findAll().stream().anyMatch(p -> p.getVenda() != null && p.getVenda().getId().equals(salva.getId()));
+            if (!hasParcela) {
+                Parcela parcela = new Parcela();
+                parcela.setVenda(salva);
+                parcela.setNumeroSequencial(1);
+                parcela.setValor(salva.getValorTotal());
+                parcela.setDataVencimento(salva.getDataVencimento());
+                parcela.setStatus(StatusParcela.PENDENTE);
+                parcela.setTenantId(tenantId);
+                parcelaRepository.save(parcela);
+            }
+        }
+
+        return toDTO(salva);
+    }
+
+    @Transactional
+    public VendaDTO confirmarVenda(Long id) {
+        Venda venda = vendaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Venda não encontrada com o ID: " + id));
+
+        venda.setStatus("CONFIRMADA");
+        Venda salva = vendaRepository.save(venda);
+
+        // Check if financial installment exists, if not create it
+        boolean hasParcela = parcelaRepository.findAll().stream().anyMatch(p -> p.getVenda() != null && p.getVenda().getId().equals(id));
+        if (!hasParcela) {
+            String tenantId = salva.getTenantId() != null ? salva.getTenantId() : "empresa_demo";
+            Parcela parcela = new Parcela();
+            parcela.setVenda(salva);
+            parcela.setNumeroSequencial(1);
+            parcela.setValor(salva.getValorTotal());
+            parcela.setDataVencimento(salva.getDataVencimento() != null ? salva.getDataVencimento() : LocalDate.now().plusDays(30));
+            parcela.setStatus(StatusParcela.PENDENTE);
+            parcela.setTenantId(tenantId);
+            parcelaRepository.save(parcela);
+        }
 
         return toDTO(salva);
     }
@@ -138,7 +171,7 @@ public class VendaService {
                 v.getValorTotal(),
                 v.getDesconto(),
                 v.getLucroLiquido(),
-                "PENDENTE"
+                v.getStatus() != null ? v.getStatus() : "CONFIRMADA"
         );
 
         dto.setEmailCliente(email);
