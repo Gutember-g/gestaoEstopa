@@ -86,4 +86,34 @@ public class FinanceiroService {
 
         return true;
     }
+
+    @Transactional
+    public ParcelaDTO baixarParcela(Long id) {
+        Parcela p = parcelaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Parcela não encontrada com ID: " + id));
+
+        p.setStatus(StatusParcela.PAGA);
+        p.setDataPagamento(LocalDate.now());
+
+        Parcela salva = parcelaRepository.save(p);
+
+        Long vendaId = (salva.getVenda() != null) ? salva.getVenda().getId() : null;
+        String clienteNome = (salva.getVenda() != null && salva.getVenda().getCliente() != null)
+                ? salva.getVenda().getCliente().getNome() : "Cliente N/A";
+        String cpfCnpj = (salva.getVenda() != null && salva.getVenda().getCliente() != null)
+                ? salva.getVenda().getCliente().getCpfCnpj() : "";
+
+        return new ParcelaDTO(
+                salva.getId(),
+                vendaId,
+                salva.getNumeroSequencial(),
+                salva.getValor(),
+                salva.getDataVencimento(),
+                salva.getDataPagamento(),
+                "PAGO",
+                clienteNome,
+                cpfCnpj,
+                (salva.getVenda() != null) ? salva.getVenda().getDesconto() : null
+        );
+    }
 }

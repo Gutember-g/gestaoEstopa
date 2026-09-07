@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
 import { useToast } from '../context/ToastContext';
 import MonthFilter from '../components/MonthFilter';
+import ActionButton from '../components/ActionButton';
 
 export default function Vendas() {
   const { showSuccess, showError } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // Period filter state
   const [filterPeriod, setFilterPeriod] = useState({
@@ -165,6 +169,14 @@ export default function Vendas() {
     setErrors({});
     setShowModal(true);
   };
+
+  useEffect(() => {
+    if (searchParams.get('novaVenda') === 'true') {
+      handleOpenNewModal();
+      searchParams.delete('novaVenda');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
 
   // Open modal for EDITING existing sale
   const handleOpenEditModal = (venda) => {
@@ -638,13 +650,13 @@ export default function Vendas() {
             )}
           </div>
 
-          <button
+          <ActionButton
+            label="Nova Venda"
+            icon="+"
+            variant="primary"
+            size="md"
             onClick={handleOpenNewModal}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
-          >
-            <span>+</span>
-            <span>Nova Venda</span>
-          </button>
+          />
         </div>
       </div>
 
@@ -700,49 +712,55 @@ export default function Vendas() {
                           <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
                         </div>
                       </td>
-                      <td className="p-4 text-right space-x-1">
-                        <button
+                      <td className="p-4 text-right space-x-1 whitespace-nowrap">
+                        <ActionButton
+                          label="Envios"
+                          icon="📩"
+                          variant="successSubtle"
+                          size="xs"
+                          title="Histórico de Envios"
                           onClick={() => handleOpenHistoricoModal(v)}
-                          className="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-600 hover:text-emerald-700 transition-all active:scale-95"
-                          title="Histórico de Envios (E-mail & WhatsApp)"
-                        >
-                          📩
-                        </button>
-                        <button
-                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
-                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
+                        />
+                        <ActionButton
+                          label="PDF"
+                          icon="📄"
+                          variant="secondary"
+                          size="xs"
                           title="Baixar PDF da Venda"
-                        >
-                          📄
-                        </button>
-                        <button
-                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
-                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-emerald-600 transition-all active:scale-95"
+                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
+                        />
+                        <ActionButton
+                          label="Excel"
+                          icon="📊"
+                          variant="secondary"
+                          size="xs"
                           title="Baixar Excel (XLSX) da Venda"
-                        >
-                          📊
-                        </button>
-                        <button
+                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
+                        />
+                        <ActionButton
+                          label="Duplicar"
+                          icon="📋"
+                          variant="subtle"
+                          size="xs"
+                          title="Duplicar Venda"
                           onClick={() => handleDuplicateVenda(v)}
-                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-indigo-600 transition-all active:scale-95"
-                          title="Duplicar / Copiar Venda"
-                        >
-                          📋
-                        </button>
-                        <button
+                        />
+                        <ActionButton
+                          label="Editar"
+                          icon="✏️"
+                          variant="outline"
+                          size="xs"
+                          title="Editar Venda"
                           onClick={() => handleOpenEditModal(v)}
-                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
-                          title="Editar venda"
-                        >
-                          ✏️
-                        </button>
-                        <button
+                        />
+                        <ActionButton
+                          label="Excluir"
+                          icon="🗑️"
+                          variant="dangerSubtle"
+                          size="xs"
+                          title="Excluir Venda"
                           onClick={() => setDeleteConfirmVenda(v)}
-                          className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all active:scale-95"
-                          title="Excluir venda"
-                        >
-                          🗑️
-                        </button>
+                        />
                       </td>
                     </tr>
                   ))}

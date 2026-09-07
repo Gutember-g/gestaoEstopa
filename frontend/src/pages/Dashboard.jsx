@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import api from '../services/api';
 import MonthFilter from '../components/MonthFilter';
+import ActionButton from '../components/ActionButton';
 import { formatCurrencyBRL } from '../utils/money';
 
 export default function Dashboard() {
@@ -289,12 +290,13 @@ export default function Dashboard() {
               <p className="text-xs text-slate-400">Últimos pedidos reais gravados no sistema</p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/vendas')}
-                className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all"
-              >
-                + Nova Venda
-              </button>
+              <ActionButton
+                label="Nova Venda"
+                icon="+"
+                variant="successSubtle"
+                size="xs"
+                onClick={() => navigate('/vendas?novaVenda=true')}
+              />
               <button
                 onClick={() => navigate('/vendas')}
                 className="text-xs font-semibold text-blue-600 hover:underline active:scale-95 transition-all"

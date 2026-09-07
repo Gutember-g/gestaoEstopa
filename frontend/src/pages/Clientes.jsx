@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import api from '../services/api';
 import { formatCurrencyBRL } from '../utils/money';
 import { useToast } from '../context/ToastContext';
+import ActionButton from '../components/ActionButton';
 
 export default function Clientes() {
   const { showSuccess, showError } = useToast();
@@ -623,28 +624,31 @@ export default function Clientes() {
                       <div className="text-[11px] text-slate-400">{c.email}</div>
                     </td>
                     <td className="p-4 text-slate-500 max-w-xs truncate">{c.observacao || '-'}</td>
-                    <td className="p-4 text-right space-x-1">
-                      <button
+                    <td className="p-4 text-right space-x-1 whitespace-nowrap">
+                      <ActionButton
+                        label="Histórico"
+                        icon="📊"
+                        variant="subtle"
+                        size="xs"
+                        title="Ver histórico de compras"
                         onClick={() => handleOpenHistorico(c)}
-                        className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
-                        title="Ver histórico de vendas"
-                      >
-                        📊
-                      </button>
-                      <button
-                        onClick={() => handleOpenEditModal(c)}
-                        className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
+                      />
+                      <ActionButton
+                        label="Editar"
+                        icon="✏️"
+                        variant="outline"
+                        size="xs"
                         title="Editar cliente"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmCliente(c)}
-                        className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all active:scale-95"
+                        onClick={() => handleOpenEditModal(c)}
+                      />
+                      <ActionButton
+                        label="Excluir"
+                        icon="🗑️"
+                        variant="dangerSubtle"
+                        size="xs"
                         title="Excluir cliente"
-                      >
-                        🗑️
-                      </button>
+                        onClick={() => setDeleteConfirmCliente(c)}
+                      />
                     </td>
                   </tr>
                 ))}

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { setAccessToken } from '../services/authStore';
+import { getAccessToken, setAccessToken } from '../services/authStore';
 import { useToast } from '../context/ToastContext';
 
 export default function Login() {
@@ -11,6 +11,12 @@ export default function Login() {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (getAccessToken()) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
