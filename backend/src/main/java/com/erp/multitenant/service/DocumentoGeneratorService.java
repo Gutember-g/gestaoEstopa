@@ -90,7 +90,8 @@ public class DocumentoGeneratorService {
             PdfPCell orderMetaCell = new PdfPCell();
             orderMetaCell.setBorder(Rectangle.NO_BORDER);
             orderMetaCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            Paragraph pOrder = new Paragraph("PEDIDO DE VENDA", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new Color(37, 99, 235)));
+            String titleText = "ORCAMENTO".equalsIgnoreCase(venda.getStatus()) ? "ORÇAMENTO DE VENDA" : "PEDIDO DE VENDA";
+            Paragraph pOrder = new Paragraph(titleText, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new Color(37, 99, 235)));
             pOrder.setAlignment(Element.ALIGN_RIGHT);
             orderMetaCell.addElement(pOrder);
 
@@ -268,7 +269,8 @@ public class DocumentoGeneratorService {
             r0.createCell(1).setCellValue(COMPANY_NAME + " (CNPJ: " + COMPANY_CNPJ + ")");
 
             Row r1 = sheet.createRow(rowNum++);
-            r1.createCell(0).setCellValue("PEDIDO DE VENDA:");
+            String labelDoc = "ORCAMENTO".equalsIgnoreCase(venda.getStatus()) ? "ORÇAMENTO DE VENDA:" : "PEDIDO DE VENDA:";
+            r1.createCell(0).setCellValue(labelDoc);
             r1.getCell(0).setCellStyle(boldStyle);
             r1.createCell(1).setCellValue("#" + (venda.getId() != null ? venda.getId() : 0));
 

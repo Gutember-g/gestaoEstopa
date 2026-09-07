@@ -3,10 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import api from '../services/api';
 import MonthFilter from '../components/MonthFilter';
+import ActionButton from '../components/ActionButton';
 import { formatCurrencyBRL } from '../utils/money';
+import { useVendaModal } from '../context/VendaModalContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { openVendaModal } = useVendaModal();
   const { activeTab } = useOutletContext() || { activeTab: 'geral' };
   const [selectedVendaDetails, setSelectedVendaDetails] = useState(null);
 
@@ -74,7 +77,7 @@ export default function Dashboard() {
           <MonthFilter onChange={setFilterPeriod} />
 
           <button
-            onClick={() => navigate('/vendas')}
+            onClick={() => openVendaModal()}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
           >
             <span>+</span>
@@ -289,12 +292,13 @@ export default function Dashboard() {
               <p className="text-xs text-slate-400">Últimos pedidos reais gravados no sistema</p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/vendas')}
-                className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold active:scale-95 transition-all"
-              >
-                + Nova Venda
-              </button>
+              <ActionButton
+                label="Nova Venda"
+                icon="+"
+                variant="successSubtle"
+                size="xs"
+                onClick={() => openVendaModal()}
+              />
               <button
                 onClick={() => navigate('/vendas')}
                 className="text-xs font-semibold text-blue-600 hover:underline active:scale-95 transition-all"

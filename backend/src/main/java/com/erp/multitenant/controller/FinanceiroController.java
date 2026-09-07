@@ -4,6 +4,8 @@ import com.erp.multitenant.dto.ParcelaDTO;
 import com.erp.multitenant.service.FinanceiroService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,5 +29,11 @@ public class FinanceiroController {
 
         List<ParcelaDTO> parcelas = financeiroService.getParcelasPorPeriodoEStatus(mes, ano, status);
         return ResponseEntity.ok(parcelas);
+    }
+
+    @PutMapping({"/financeiro/parcelas/{id}/pagar", "/parcelas/{id}/pagar"})
+    public ResponseEntity<ParcelaDTO> baixarParcela(@PathVariable("id") Long id) {
+        ParcelaDTO parcela = financeiroService.baixarParcela(id);
+        return ResponseEntity.ok(parcela);
     }
 }

@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
 import { useToast } from '../context/ToastContext';
 import MonthFilter from '../components/MonthFilter';
+import ActionButton from '../components/ActionButton';
+import { useVendaModal } from '../context/VendaModalContext';
 
 export default function Vendas() {
   const { showSuccess, showError } = useToast();
+  const { openVendaModal } = useVendaModal();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // Period filter state
   const [filterPeriod, setFilterPeriod] = useState({
@@ -153,85 +159,38 @@ export default function Vendas() {
 
   // Open modal for NEW sale
   const handleOpenNewModal = () => {
-    setEditingVendaId(null);
-    setClienteId('');
-    setDescontoFormatted('R$ 0,00');
-    setPrazoFaturamentoOption('30');
-    setPrazoFaturamentoCustom('30');
-    setEnviarEmail(true);
-    setEnviarWhatsapp(false);
-    setFormatoDocumento('pdf');
-    setItens([createEmptyItem()]);
-    setErrors({});
-    setShowModal(true);
+    openVendaModal();
+  };
+
+  useEffect(() => {
+    if (searchParams.get('novaVenda') === 'true') {
+      openVendaModal();
+      searchParams.delete('novaVenda');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
+
+  // Approve Budget (Orçamento -> Confirmada)
+  const handleAprovarOrcamento = async (venda) => {
+    try {
+      await api.put(`/vendas/${venda.id}/confirmar`);
+      showSuccess(`Orçamento #${venda.id} aprovado e transformado em Venda Confirmada! Parcelas geradas no Financeiro. ✓`);
+      queryClient.invalidateQueries({ queryKey: ['vendas'] });
+      queryClient.invalidateQueries({ queryKey: ['parcelas'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (err) {
+      showError(err.response?.data?.message || 'Falha ao aprovar orçamento.');
+    }
   };
 
   // Open modal for EDITING existing sale
   const handleOpenEditModal = (venda) => {
-    setEditingVendaId(venda.id);
-    setClienteId(String(venda.clienteId || '1'));
-    setDescontoFormatted(formatCurrencyBRL(venda.desconto));
-    setEnviarEmail(true);
-    setEnviarWhatsapp(false);
-    setFormatoDocumento('pdf');
-    
-    const prazo = String(venda.prazoFaturamentoDias ?? 30);
-    if (['0', '7', '15', '30', '45', '60'].includes(prazo)) {
-      setPrazoFaturamentoOption(prazo);
-      setPrazoFaturamentoCustom(prazo);
-    } else {
-      setPrazoFaturamentoOption('custom');
-      setPrazoFaturamentoCustom(prazo);
-    }
-
-    if (venda.itens && venda.itens.length > 0) {
-      setItens(venda.itens.map((it) => ({
-        produtoId: it.produtoId || 1,
-        sku: it.sku || 'SKU-001',
-        nomeProduto: it.nomeProduto || 'Estopa Branca Premium 1kg',
-        custoNoMomento: it.custoNoMomento || 8.50,
-        precoNoMomentoFormatted: it.precoNoMomentoFormatted || formatCurrencyBRL(15.00),
-        quantidade: it.quantidade || 1,
-      })));
-    } else {
-      setItens([createEmptyItem()]);
-    }
-
-    setErrors({});
-    setShowModal(true);
+    openVendaModal(venda);
   };
 
   // DUPLICATE/COPY Sale Action
   const handleDuplicateVenda = (venda) => {
-    setEditingVendaId(null);
-    setClienteId(String(venda.clienteId || '1'));
-    setDescontoFormatted(formatCurrencyBRL(venda.desconto));
-
-    const prazo = String(venda.prazoFaturamentoDias ?? 30);
-    if (['0', '7', '15', '30', '45', '60'].includes(prazo)) {
-      setPrazoFaturamentoOption(prazo);
-      setPrazoFaturamentoCustom(prazo);
-    } else {
-      setPrazoFaturamentoOption('custom');
-      setPrazoFaturamentoCustom(prazo);
-    }
-
-    if (venda.itens && venda.itens.length > 0) {
-      setItens(venda.itens.map((it) => ({
-        produtoId: it.produtoId || 1,
-        sku: it.sku || 'SKU-001',
-        nomeProduto: it.nomeProduto || 'Estopa Branca Premium 1kg',
-        custoNoMomento: it.custoNoMomento || 8.50,
-        precoNoMomentoFormatted: it.precoNoMomentoFormatted || formatCurrencyBRL(15.00),
-        quantidade: it.quantidade || 1,
-      })));
-    } else {
-      setItens([createEmptyItem()]);
-    }
-
-    setErrors({});
-    setShowModal(true);
-    showSuccess(`Dados da Venda #${venda.id} copiados! Ajuste os dados e emita o novo pedido. ✓`);
+    openVendaModal(venda);
   };
 
   const handleCloseModal = () => {
@@ -533,16 +492,29 @@ export default function Vendas() {
         responseType: 'blob',
       });
       const mime = formato === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf';
+      const ext = formato === 'xlsx' ? 'xlsx' : 'pdf';
       const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
-      window.open(url, '_blank');
-      showSuccess(`Documento (${formato.toUpperCase()}) da Venda #${vendaId} gerado com sucesso! ✓`);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `pedido_venda_${vendaId}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showSuccess(`Documento (${formato.toUpperCase()}) da Venda #${vendaId} baixado com sucesso! ✓`);
     } catch {
       // Fallback to legacy pdf route
       try {
         const res = await api.get(`/vendas/${vendaId}/pdf`, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-        window.open(url, '_blank');
-        showSuccess(`PDF da Venda #${vendaId} gerado com sucesso! ✓`);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `pedido_venda_${vendaId}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        showSuccess(`PDF da Venda #${vendaId} baixado com sucesso! ✓`);
       } catch {
         showError(`Não foi possível gerar o documento da venda #${vendaId}`);
       }
@@ -625,13 +597,13 @@ export default function Vendas() {
             )}
           </div>
 
-          <button
+          <ActionButton
+            label="Nova Venda"
+            icon="+"
+            variant="primary"
+            size="md"
             onClick={handleOpenNewModal}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 active:scale-95 transition-all min-h-[44px]"
-          >
-            <span>+</span>
-            <span>Nova Venda</span>
-          </button>
+          />
         </div>
       </div>
 
@@ -652,6 +624,7 @@ export default function Vendas() {
                 <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-semibold text-slate-500 tracking-wider">
                   <tr>
                     <th className="p-4">ID Venda</th>
+                    <th className="p-4">Status / Tipo</th>
                     <th className="p-4">Cliente</th>
                     <th className="p-4">Data Venda</th>
                     <th className="p-4">Custo Total</th>
@@ -667,6 +640,17 @@ export default function Vendas() {
                     <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-4 font-mono font-bold text-slate-900">#{v.id}</td>
                       <td className="p-4">
+                        {v.status === 'ORCAMENTO' ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 inline-flex items-center gap-1">
+                            <span>📝</span> Orçamento
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 inline-flex items-center gap-1">
+                            <span>✓</span> Venda Confirmada
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4">
                         <div className="font-semibold text-slate-800">{v.clienteNome}</div>
                         <div className="text-[10px] text-slate-400 font-mono">{v.cpfCnpj}</div>
                       </td>
@@ -681,55 +665,63 @@ export default function Vendas() {
                       </td>
                       <td className="p-4">
                         <div className="space-y-0.5">
-                          <span className={statusBadges[v.status]}>
+                          <span className="text-[11px] font-medium text-slate-700">
                             {v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias} dias`}
                           </span>
                           <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
                         </div>
                       </td>
-                      <td className="p-4 text-right space-x-1">
-                        <button
+                      <td className="p-4 text-right space-x-1 whitespace-nowrap">
+                        {v.status === 'ORCAMENTO' && (
+                          <ActionButton
+                            label="Aprovar Orçamento"
+                            icon="✓"
+                            variant="success"
+                            size="xs"
+                            title="Aprovar Orçamento e Gerar Parcelas no Financeiro"
+                            onClick={() => handleAprovarOrcamento(v)}
+                          />
+                        )}
+                        <ActionButton
+                          label="Envios"
+                          icon="📩"
+                          variant="successSubtle"
+                          size="xs"
+                          title="Histórico de Envios"
                           onClick={() => handleOpenHistoricoModal(v)}
-                          className="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-600 hover:text-emerald-700 transition-all active:scale-95"
-                          title="Histórico de Envios (E-mail & WhatsApp)"
-                        >
-                          📩
-                        </button>
-                        <button
-                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
-                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
+                        />
+                        <ActionButton
+                          label="PDF"
+                          icon="📄"
+                          variant="secondary"
+                          size="xs"
                           title="Baixar PDF da Venda"
-                        >
-                          📄
-                        </button>
-                        <button
-                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
-                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-emerald-600 transition-all active:scale-95"
+                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
+                        />
+                        <ActionButton
+                          label="Excel"
+                          icon="📊"
+                          variant="secondary"
+                          size="xs"
                           title="Baixar Excel (XLSX) da Venda"
-                        >
-                          📊
-                        </button>
-                        <button
+                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
+                        />
+                        <ActionButton
+                          label="Duplicar"
+                          icon="📋"
+                          variant="subtle"
+                          size="xs"
+                          title="Duplicar Venda"
                           onClick={() => handleDuplicateVenda(v)}
-                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-indigo-600 transition-all active:scale-95"
-                          title="Duplicar / Copiar Venda"
-                        >
-                          📋
-                        </button>
-                        <button
-                          onClick={() => handleOpenEditModal(v)}
-                          className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
-                          title="Editar venda"
-                        >
-                          ✏️
-                        </button>
-                        <button
+                        />
+                        <ActionButton
+                          label="Excluir"
+                          icon="🗑️"
+                          variant="dangerSubtle"
+                          size="xs"
+                          title="Excluir Venda"
                           onClick={() => setDeleteConfirmVenda(v)}
-                          className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all active:scale-95"
-                          title="Excluir venda"
-                        >
-                          🗑️
-                        </button>
+                        />
                       </td>
                     </tr>
                   ))}
@@ -743,10 +735,30 @@ export default function Vendas() {
                 <div key={v.id} className="p-4 space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
+                        {v.status === 'ORCAMENTO' ? (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            📝 Orçamento
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            ✓ Confirmada
+                          </span>
+                        )}
+                      </div>
                       <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
                     </div>
                     <div className="flex items-center gap-1.5">
+                      {v.status === 'ORCAMENTO' && (
+                        <button
+                          onClick={() => handleAprovarOrcamento(v)}
+                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[10px] font-bold shadow-xs active:scale-95 transition-all"
+                          title="Aprovar Orçamento"
+                        >
+                          ✓ Aprovar
+                        </button>
+                      )}
                       <button
                         onClick={() => handleOpenHistoricoModal(v)}
                         className="p-1 text-emerald-600 hover:text-emerald-700"
@@ -755,18 +767,25 @@ export default function Vendas() {
                         📩
                       </button>
                       <button
+                        onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
+                        className="p-1 text-slate-500 hover:text-blue-600"
+                        title="Baixar PDF da Venda"
+                      >
+                        📄
+                      </button>
+                      <button
+                        onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
+                        className="p-1 text-slate-500 hover:text-emerald-600"
+                        title="Baixar Excel (XLSX) da Venda"
+                      >
+                        📊
+                      </button>
+                      <button
                         onClick={() => handleDuplicateVenda(v)}
                         className="p-1 text-slate-500 hover:text-indigo-600"
                         title="Duplicar venda"
                       >
                         📋
-                      </button>
-                      <button
-                        onClick={() => handleOpenEditModal(v)}
-                        className="p-1 text-slate-500 hover:text-blue-600"
-                        title="Editar venda"
-                      >
-                        ✏️
                       </button>
                       <button
                         onClick={() => setDeleteConfirmVenda(v)}
@@ -794,309 +813,6 @@ export default function Vendas() {
           </>
         )}
       </div>
-
-      {/* Modal - Emissão / Edição de Venda */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-2xl space-y-5 shadow-2xl my-auto animate-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">
-                  {editingVendaId ? `Editar Venda #${editingVendaId}` : 'Emissão de Nova Venda'}
-                </h2>
-                <p className="text-[11px] text-slate-400">Selecione o cliente, defina os produtos e escolha os canais de envio do documento.</p>
-              </div>
-              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              {/* 1. Seleção de Cliente */}
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">1. Selecionar Cliente *</label>
-                <select
-                  value={clienteId}
-                  onChange={(e) => {
-                    setClienteId(e.target.value);
-                    if (errors.clienteId) setErrors((prev) => ({ ...prev, clienteId: null }));
-                  }}
-                  className={`w-full p-3 border rounded-xl bg-slate-50/50 text-xs font-medium focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 focus:outline-none transition-all ${
-                    errors.clienteId ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-200'
-                  }`}
-                >
-                  <option value="">Escolha um cliente cadastrado...</option>
-                  {clientesCadastrados.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome} (CNPJ/CPF: {c.cpfCnpj}) {c.email ? `[${c.email}]` : '[Sem e-mail]'}
-                    </option>
-                  ))}
-                </select>
-                {errors.clienteId && <span className="text-rose-500 text-[10px] font-semibold mt-1 block">{errors.clienteId}</span>}
-              </div>
-
-              {/* 2. Seleção e Edição de Produtos */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="font-semibold text-slate-700">2. Produtos da Venda *</label>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all"
-                  >
-                    <span>+</span>
-                    <span>Adicionar Item</span>
-                  </button>
-                </div>
-
-                {errors.itens && <span className="text-rose-500 text-[10px] font-semibold block">{errors.itens}</span>}
-
-                <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
-                  {itens.map((item, idx) => {
-                    const hasProduct = Boolean(item.produtoId);
-                    const lineSubtotal = hasProduct
-                      ? parseCurrencyToNumber(item.precoNoMomentoFormatted) * item.quantidade
-                      : 0;
-
-                    return (
-                      <div key={idx} className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl space-y-2">
-                        {/* Dropdown de Seleção de Produto por SKU + Nome */}
-                        <div className="flex items-center justify-between gap-2">
-                          <select
-                            value={item.produtoId}
-                            onChange={(e) => handleSelectProductInLine(idx, e.target.value)}
-                            className="flex-1 p-2 border border-slate-200 rounded-lg bg-white font-medium text-slate-800 text-xs focus:ring-2 focus:ring-blue-500/40"
-                          >
-                            <option value="">Selecione um produto...</option>
-                            {produtosCadastrados.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                [{p.sku}] {p.nome} — Preço Sugerido: {formatCurrencyBRL(p.precoVenda)}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(idx)}
-                            className="text-rose-500 hover:text-rose-700 text-sm font-bold px-2 py-1 hover:bg-rose-50 rounded-lg active:scale-95 transition-all"
-                            title="Remover produto"
-                          >
-                            ✕
-                          </button>
-                        </div>
-
-                        {/* Linha de edição: Quantidade, Custo (fixo), Preço Venda (editável), Subtotal */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center text-xs">
-                          <div>
-                            <span className="text-[10px] text-slate-400 block font-medium">QTD</span>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={!hasProduct}
-                              value={item.quantidade}
-                              onChange={(e) => handleQuantityChange(idx, e.target.value)}
-                              className="w-full p-2 border border-slate-200 rounded-lg bg-white font-semibold text-center focus:ring-2 focus:ring-blue-500/40 disabled:bg-slate-100 disabled:text-slate-400"
-                            />
-                          </div>
-
-                          <div>
-                            <span className="text-[10px] text-slate-400 block font-medium">CUSTO UNIT. (FIXO)</span>
-                            <div className="p-2 bg-slate-100/80 border border-slate-200/60 rounded-lg font-mono text-slate-500 text-center">
-                              {hasProduct ? formatCurrencyBRL(item.custoNoMomento) : 'R$ 0,00'}
-                            </div>
-                          </div>
-
-                          <div>
-                            <span className="text-[10px] text-blue-600 block font-semibold">PREÇO UNIT. (EDITÁVEL)</span>
-                            <input
-                              type="text"
-                              disabled={!hasProduct}
-                              placeholder="R$ 0,00"
-                              value={item.precoNoMomentoFormatted}
-                              onChange={(e) => handleUnitPriceChange(idx, e.target.value)}
-                              className="w-full p-2 border border-blue-300 rounded-lg bg-white font-bold text-slate-900 text-center focus:ring-2 focus:ring-blue-500/40 disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400"
-                            />
-                          </div>
-
-                          <div>
-                            <span className="text-[10px] text-slate-400 block font-medium">SUBTOTAL</span>
-                            <div className="p-2 bg-white border border-slate-200 rounded-lg font-bold text-slate-900 text-center">
-                              {formatCurrencyBRL(lineSubtotal)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 3. Desconto e Prazo para Faturamento */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Desconto Concedido (R$)</label>
-                  <input
-                    type="text"
-                    value={descontoFormatted}
-                    onChange={(e) => setDescontoFormatted(applyCurrencyMask(e.target.value))}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-white font-semibold focus:ring-2 focus:ring-blue-500/40"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Prazo para Faturamento (dias) *</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={prazoFaturamentoOption}
-                      onChange={(e) => setPrazoFaturamentoOption(e.target.value)}
-                      className="w-full p-2.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/40"
-                    >
-                      <option value="0">À Vista (0 dias)</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">30 dias</option>
-                      <option value="45">45 dias</option>
-                      <option value="60">60 dias</option>
-                      <option value="custom">Personalizado...</option>
-                    </select>
-
-                    {prazoFaturamentoOption === 'custom' && (
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Ex: 90"
-                        value={prazoFaturamentoCustom}
-                        onChange={(e) => setPrazoFaturamentoCustom(e.target.value)}
-                        className="w-24 p-2.5 border border-blue-400 rounded-xl bg-white font-bold text-center focus:ring-2 focus:ring-blue-500/40"
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. Opções de Envio Automático de Documento */}
-              <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200/80 p-3.5 rounded-xl space-y-2.5">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                    <span>📩 Geração e Envio do Pedido ao Cliente</span>
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-500 font-medium">Formato:</span>
-                    <select
-                      value={formatoDocumento}
-                      onChange={(e) => setFormatoDocumento(e.target.value)}
-                      className="p-1 px-2 border border-blue-200 rounded-lg bg-white font-bold text-blue-700 text-xs focus:ring-2 focus:ring-blue-500/40"
-                    >
-                      <option value="pdf">PDF (Recomendado)</option>
-                      <option value="xlsx">Excel (XLSX)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <label className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={enviarEmail}
-                      onChange={(e) => setEnviarEmail(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 rounded accent-blue-600 cursor-pointer"
-                    />
-                    <div>
-                      <span className="font-bold text-slate-800 block text-xs">Enviar por E-mail</span>
-                      <span className="text-[10px] text-slate-500 block">Enviar anexo no e-mail do cliente</span>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={enviarWhatsapp}
-                      onChange={(e) => setEnviarWhatsapp(e.target.checked)}
-                      className="w-4 h-4 text-emerald-600 rounded accent-emerald-600 cursor-pointer"
-                    />
-                    <div>
-                      <span className="font-bold text-slate-800 block text-xs">Enviar por WhatsApp</span>
-                      <span className="text-[10px] text-slate-500 block">Enviar link/resumo no número do cliente</span>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Pre-check Warning Banners inside Modal */}
-                {enviarEmail && isClienteMissingEmail && (
-                  <div className="bg-amber-50 border border-amber-200/90 text-amber-800 p-2.5 rounded-lg text-[11px] font-medium flex items-center gap-2 animate-in fade-in">
-                    <span>⚠️</span>
-                    <span>O cliente selecionado não possui e-mail cadastrado. A emissão continuará normalmente e o envio por e-mail será simulado.</span>
-                  </div>
-                )}
-
-                {enviarWhatsapp && isClienteMissingPhone && (
-                  <div className="bg-amber-50 border border-amber-200/90 text-amber-800 p-2.5 rounded-lg text-[11px] font-medium flex items-center gap-2 animate-in fade-in">
-                    <span>⚠️</span>
-                    <span>O cliente selecionado não possui telefone cadastrado. O envio por WhatsApp será simulado com log de aviso.</span>
-                  </div>
-                )}
-              </div>
-
-              {/* 5. Card de Resumo Financeiro em Tempo Real */}
-              <div className="bg-slate-900 text-white p-4 rounded-xl space-y-2 shadow-inner">
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>Subtotal sem Desconto:</span>
-                  <span className="font-mono">{formatCurrencyBRL(subtotalSemDesconto)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>Custo Total dos Produtos:</span>
-                  <span className="font-mono">{formatCurrencyBRL(custoTotalCalc)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>Valor do Desconto:</span>
-                  <span className="font-mono text-amber-400">-{formatCurrencyBRL(descontoVal)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-slate-400 border-t border-slate-800/80 pt-2">
-                  <span>Data de Vencimento Estimada:</span>
-                  <span className="font-semibold text-blue-300">{getEstimatedDueDate(prazoDiasFinal)} ({prazoDiasFinal} dias)</span>
-                </div>
-                <div className="border-t border-slate-800 pt-2 flex justify-between items-center">
-                  <div>
-                    <div className="text-[10px] text-slate-400 uppercase font-semibold">Valor Total Final</div>
-                    <div className="text-lg font-bold text-white">{formatCurrencyBRL(valorTotalFinal)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] text-emerald-400 uppercase font-semibold">Lucro Líquido Previsto</div>
-                    <div className="text-lg font-bold text-emerald-400">
-                      {formatCurrencyBRL(lucroLiquidoPrevisto)} <span className="text-xs font-normal">({margemLucroPrevista}%)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Botões do Modal */}
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2.5 text-slate-500 font-semibold hover:bg-slate-100 rounded-xl active:scale-95 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="animate-spin text-sm">⏳</span>
-                      <span>Processando Venda & Documento...</span>
-                    </>
-                  ) : (
-                    <span>{editingVendaId ? 'Salvar Alterações' : 'Emitir Venda & Enviar'}</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Modal - Histórico de Envios & Reenvio Manual */}
       {showHistoricoModal && selectedVendaForHistorico && (

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
 import { useToast } from '../context/ToastContext';
+import ActionButton from '../components/ActionButton';
 
 export default function Produtos() {
   const { showSuccess, showError } = useToast();
@@ -241,21 +242,23 @@ export default function Produtos() {
                         {p.status}
                       </span>
                     </td>
-                    <td className="p-4 text-right space-x-1">
-                      <button
-                        onClick={() => handleOpenEditModal(p)}
-                        className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-blue-600 transition-all active:scale-95"
+                    <td className="p-4 text-right space-x-1 whitespace-nowrap">
+                      <ActionButton
+                        label="Editar"
+                        icon="✏️"
+                        variant="outline"
+                        size="xs"
                         title="Editar produto"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmProd(p)}
-                        className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all active:scale-95"
+                        onClick={() => handleOpenEditModal(p)}
+                      />
+                      <ActionButton
+                        label="Excluir"
+                        icon="🗑️"
+                        variant="dangerSubtle"
+                        size="xs"
                         title="Excluir produto"
-                      >
-                        🗑️
-                      </button>
+                        onClick={() => setDeleteConfirmProd(p)}
+                      />
                     </td>
                   </tr>
                 ))}
