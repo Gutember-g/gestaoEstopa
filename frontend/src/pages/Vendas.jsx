@@ -628,7 +628,8 @@ export default function Vendas() {
                     <th className="p-4">Cliente</th>
                     <th className="p-4">Status / Tipo</th>
                     <th className="p-4">Valor Total</th>
-                    <th className="p-4 pr-6">Prazo & Vencimento</th>
+                    <th className="p-4">Prazo & Vencimento</th>
+                    <th className="p-4 pr-6 text-right w-24">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -637,7 +638,7 @@ export default function Vendas() {
                       key={v.id}
                       onClick={() => setSelectedVendaDetails(v)}
                       className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group h-auto"
-                      title="Clique para ver detalhes completos da venda e ações"
+                      title="Clique para ver detalhes completos da venda"
                     >
                       <td className="p-4 font-mono font-bold text-slate-900 group-hover:text-blue-600">#{v.id}</td>
                       <td className="p-4 font-bold text-slate-800">{v.clienteNome}</td>
@@ -653,13 +654,26 @@ export default function Vendas() {
                         )}
                       </td>
                       <td className="p-4 font-extrabold text-slate-900 text-sm">{formatCurrencyBRL(v.valorTotal)}</td>
-                      <td className="p-4 pr-6">
+                      <td className="p-4">
                         <div className="space-y-0.5">
                           <span className="text-[11px] font-medium text-slate-700">
                             {v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias} dias`}
                           </span>
                           <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
                         </div>
+                      </td>
+                      <td className="p-4 pr-6 text-right w-24" onClick={(e) => e.stopPropagation()}>
+                        <ActionButton
+                          label="Editar"
+                          icon="✏️"
+                          variant="outline"
+                          size="xs"
+                          title="Editar Venda"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditModal(v);
+                          }}
+                        />
                       </td>
                     </tr>
                   ))}

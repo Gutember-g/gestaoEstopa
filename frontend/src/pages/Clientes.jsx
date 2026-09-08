@@ -18,6 +18,7 @@ export default function Clientes() {
   const [deleteConfirmCliente, setDeleteConfirmCliente] = useState(null);
   const [historicoCliente, setHistoricoCliente] = useState(null);
   const [vendaDetalheModal, setVendaDetalheModal] = useState(null);
+  const [selectedClienteDetails, setSelectedClienteDetails] = useState(null);
   const [expandedObsId, setExpandedObsId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -589,18 +590,20 @@ export default function Clientes() {
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
                 <tr>
-                  <th className="p-4">Status</th>
                   <th className="p-4">Nome / Razão Social</th>
-                  <th className="p-4">CPF / CNPJ</th>
-                  <th className="p-4">Inscrição Estadual</th>
+                  <th className="p-4">Status</th>
                   <th className="p-4">Contato</th>
-                  <th className="p-4 max-w-[250px]">Observação</th>
-                  <th className="p-4 pr-6 text-right w-44">Ações</th>
+                  <th className="p-4 pr-6 text-right w-28">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredClientes.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/80 transition-colors group h-auto">
+                  <tr
+                    key={c.id}
+                    onClick={() => setSelectedClienteDetails(c)}
+                    className="hover:bg-blue-50/50 transition-colors group cursor-pointer h-auto"
+                  >
+                    <td className="p-4 font-bold text-slate-900">{c.nome}</td>
                     <td className="p-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                         c.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
@@ -608,55 +611,22 @@ export default function Clientes() {
                         {c.status || 'ATIVO'}
                       </span>
                     </td>
-                    <td className="p-4 font-bold text-slate-800">
-                      <button
-                        onClick={() => handleOpenHistorico(c)}
-                        className="text-left font-bold text-slate-900 hover:text-blue-600 flex items-center gap-1.5 transition-colors"
-                        title="Ver histórico de compras"
-                      >
-                        <span>{c.nome}</span>
-                        <span className="text-[10px] text-blue-500 font-normal bg-blue-50 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          📊 Histórico
-                        </span>
-                      </button>
-                    </td>
-                    <td className="p-4 font-mono">{c.cpfCnpj}</td>
-                    <td className="p-4 font-mono text-slate-500">{c.inscricaoEstadual || '-'}</td>
                     <td className="p-4">
-                      <div>{c.telefone}</div>
-                      <div className="text-[11px] text-slate-400">{c.email}</div>
+                      <div>{c.telefone || '-'}</div>
+                      <div className="text-[11px] text-slate-400">{c.email || '-'}</div>
                     </td>
-                    <td
-                      className="p-4 text-slate-500 max-w-[250px] whitespace-normal break-words leading-relaxed"
-                      title={c.observacao || undefined}
-                    >
-                      {c.observacao || '-'}
-                    </td>
-                    <td className="p-4 pr-6 text-right w-44">
-                      <div className="flex flex-wrap justify-end gap-1.5">
-                        <ActionButton
-                          label="Histórico"
-                          icon="📊"
-                          variant="subtle"
-                          size="xs"
-                          title="Ver histórico de compras"
-                          onClick={() => handleOpenHistorico(c)}
-                        />
+                    <td className="p-4 pr-6 text-right w-28">
+                      <div className="flex justify-end">
                         <ActionButton
                           label="Editar"
                           icon="✏️"
                           variant="outline"
                           size="xs"
                           title="Editar cliente"
-                          onClick={() => handleOpenEditModal(c)}
-                        />
-                        <ActionButton
-                          label="Excluir"
-                          icon="🗑️"
-                          variant="dangerSubtle"
-                          size="xs"
-                          title="Excluir cliente"
-                          onClick={() => setDeleteConfirmCliente(c)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditModal(c);
+                          }}
                         />
                       </div>
                     </td>
@@ -669,15 +639,14 @@ export default function Clientes() {
           {/* Mobile Cards View */}
           <div className="md:hidden divide-y divide-slate-100">
             {filteredClientes.map((c) => (
-              <div key={c.id} className="p-4 space-y-2">
+              <div
+                key={c.id}
+                onClick={() => setSelectedClienteDetails(c)}
+                className="p-4 space-y-2 hover:bg-blue-50/30 cursor-pointer transition-colors"
+              >
                 <div className="flex justify-between items-start">
                   <div>
-                    <button
-                      onClick={() => handleOpenHistorico(c)}
-                      className="font-bold text-sm text-slate-800 text-left hover:text-blue-600"
-                    >
-                      {c.nome} 📊
-                    </button>
+                    <div className="font-bold text-sm text-slate-800">{c.nome}</div>
                     <div className="mt-0.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                         c.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
@@ -688,32 +657,142 @@ export default function Clientes() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => handleOpenHistorico(c)}
-                      className="p-1 text-slate-500 hover:text-blue-600"
-                      title="Ver histórico"
-                    >
-                      📊
-                    </button>
-                    <button
-                      onClick={() => handleOpenEditModal(c)}
-                      className="p-1 text-slate-500 hover:text-blue-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditModal(c);
+                      }}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100"
+                      title="Editar cliente"
                     >
                       ✏️
                     </button>
-                    <button
-                      onClick={() => setDeleteConfirmCliente(c)}
-                      className="p-1 text-slate-400 hover:text-rose-600"
-                    >
-                      🗑️
-                    </button>
                   </div>
                 </div>
-                <div className="text-xs font-mono text-slate-600">CPF/CNPJ: {c.cpfCnpj}</div>
-                <div className="text-xs text-slate-500">I.E.: {c.inscricaoEstadual || 'Isento'}</div>
-                <div className="text-xs text-blue-600 font-medium">{c.telefone} | {c.email}</div>
-                {c.observacao && <div className="text-[11px] text-slate-400 bg-slate-50 p-2 rounded">{c.observacao}</div>}
+                <div className="text-xs text-blue-600 font-medium">{c.telefone || '-'} | {c.email || '-'}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal / Drawer de Detalhes do Cliente */}
+      {selectedClienteDetails && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl my-auto animate-in zoom-in-95 duration-150 overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 p-4 sm:px-6 sm:py-4 flex-shrink-0">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  Detalhes do Cliente
+                </h2>
+                <p className="text-[11px] text-slate-500">{selectedClienteDetails.nome}</p>
+              </div>
+              <button
+                onClick={() => setSelectedClienteDetails(null)}
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-3">
+                <h3 className="font-bold text-slate-800 text-xs border-b border-slate-200/60 pb-2">Informações Cadastrais</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Nome / Razão Social</span>
+                    <span className="font-bold text-slate-800">{selectedClienteDetails.nome}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Status</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mt-0.5 ${
+                      selectedClienteDetails.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      {selectedClienteDetails.status || 'ATIVO'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">CPF / CNPJ</span>
+                    <span className="font-mono font-medium text-slate-700">{selectedClienteDetails.cpfCnpj || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Inscrição Estadual</span>
+                    <span className="font-mono font-medium text-slate-700">{selectedClienteDetails.inscricaoEstadual || 'Isento'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-3">
+                <h3 className="font-bold text-slate-800 text-xs border-b border-slate-200/60 pb-2">Contato</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Telefone</span>
+                    <span className="font-medium text-slate-700">{selectedClienteDetails.telefone || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">E-mail</span>
+                    <span className="font-medium text-slate-700">{selectedClienteDetails.email || '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-2">
+                <h3 className="font-bold text-slate-800 text-xs border-b border-slate-200/60 pb-2">Observações</h3>
+                <p className="text-slate-600 whitespace-normal break-words leading-relaxed">
+                  {selectedClienteDetails.observacao || 'Nenhuma observação cadastrada.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap justify-between items-center gap-2 p-4 sm:px-6 border-t border-slate-100 flex-shrink-0">
+              <div className="flex flex-wrap gap-2">
+                <ActionButton
+                  label="Histórico de Compras"
+                  icon="📊"
+                  variant="subtle"
+                  size="sm"
+                  title="Ver histórico de compras"
+                  onClick={() => {
+                    const c = selectedClienteDetails;
+                    setSelectedClienteDetails(null);
+                    handleOpenHistorico(c);
+                  }}
+                />
+                <ActionButton
+                  label="Editar"
+                  icon="✏️"
+                  variant="outline"
+                  size="sm"
+                  title="Editar cliente"
+                  onClick={() => {
+                    const c = selectedClienteDetails;
+                    setSelectedClienteDetails(null);
+                    handleOpenEditModal(c);
+                  }}
+                />
+                <ActionButton
+                  label="Excluir"
+                  icon="🗑️"
+                  variant="dangerSubtle"
+                  size="sm"
+                  title="Excluir cliente"
+                  onClick={() => {
+                    const c = selectedClienteDetails;
+                    setSelectedClienteDetails(null);
+                    setDeleteConfirmCliente(c);
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={() => setSelectedClienteDetails(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs active:scale-95 transition-all"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
