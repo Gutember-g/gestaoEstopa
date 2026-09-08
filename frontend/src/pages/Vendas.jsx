@@ -28,6 +28,7 @@ export default function Vendas() {
   const [showModal, setShowModal] = useState(false);
   const [editingVendaId, setEditingVendaId] = useState(null);
   const [deleteConfirmVenda, setDeleteConfirmVenda] = useState(null);
+  const [selectedVendaDetails, setSelectedVendaDetails] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -619,26 +620,27 @@ export default function Vendas() {
           </div>
         ) : (
           <>
-            <div className="hidden md:block overflow-x-auto pr-2">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-semibold text-slate-500 tracking-wider">
                   <tr>
                     <th className="p-4">ID Venda</th>
-                    <th className="p-4">Status / Tipo</th>
                     <th className="p-4">Cliente</th>
-                    <th className="p-4">Data Venda</th>
-                    <th className="p-4">Custo Total</th>
+                    <th className="p-4">Status / Tipo</th>
                     <th className="p-4">Valor Total</th>
-                    <th className="p-4">Desconto</th>
-                    <th className="p-4">Lucro Líquido</th>
-                    <th className="p-4">Prazo & Vencimento</th>
-                    <th className="p-4 pr-6 text-right w-48">Ações</th>
+                    <th className="p-4 pr-6">Prazo & Vencimento</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {vendas.map((v) => (
-                    <tr key={v.id} className="hover:bg-slate-50/80 transition-colors h-auto">
-                      <td className="p-4 font-mono font-bold text-slate-900">#{v.id}</td>
+                    <tr
+                      key={v.id}
+                      onClick={() => setSelectedVendaDetails(v)}
+                      className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group h-auto"
+                      title="Clique para ver detalhes completos da venda e ações"
+                    >
+                      <td className="p-4 font-mono font-bold text-slate-900 group-hover:text-blue-600">#{v.id}</td>
+                      <td className="p-4 font-bold text-slate-800">{v.clienteNome}</td>
                       <td className="p-4">
                         {v.status === 'ORCAMENTO' ? (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 inline-flex items-center gap-1">
@@ -650,79 +652,13 @@ export default function Vendas() {
                           </span>
                         )}
                       </td>
-                      <td className="p-4">
-                        <div className="font-semibold text-slate-800">{v.clienteNome}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{v.cpfCnpj}</div>
-                      </td>
-                      <td className="p-4 text-slate-500">{v.dataVenda}</td>
-                      <td className="p-4 font-mono text-slate-500">{formatCurrencyBRL(v.custoTotal)}</td>
-                      <td className="p-4 font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</td>
-                      <td className="p-4 font-mono text-slate-400">-{formatCurrencyBRL(v.desconto)}</td>
-                      <td className="p-4">
-                        <span className="badge-pago font-mono">
-                          +{formatCurrencyBRL(v.lucroLiquido)}
-                        </span>
-                      </td>
-                      <td className="p-4">
+                      <td className="p-4 font-extrabold text-slate-900 text-sm">{formatCurrencyBRL(v.valorTotal)}</td>
+                      <td className="p-4 pr-6">
                         <div className="space-y-0.5">
                           <span className="text-[11px] font-medium text-slate-700">
                             {v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias} dias`}
                           </span>
                           <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
-                        </div>
-                      </td>
-                      <td className="p-4 pr-6 text-right w-48">
-                        <div className="flex flex-wrap justify-end gap-1.5">
-                          {v.status === 'ORCAMENTO' && (
-                            <ActionButton
-                              label="Aprovar Orçamento"
-                              icon="✓"
-                              variant="success"
-                              size="xs"
-                              title="Aprovar Orçamento e Gerar Parcelas no Financeiro"
-                              onClick={() => handleAprovarOrcamento(v)}
-                            />
-                          )}
-                          <ActionButton
-                            label="Envios"
-                            icon="📩"
-                            variant="successSubtle"
-                            size="xs"
-                            title="Histórico de Envios"
-                            onClick={() => handleOpenHistoricoModal(v)}
-                          />
-                          <ActionButton
-                            label="PDF"
-                            icon="📄"
-                            variant="secondary"
-                            size="xs"
-                            title="Baixar PDF da Venda"
-                            onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
-                          />
-                          <ActionButton
-                            label="Excel"
-                            icon="📊"
-                            variant="secondary"
-                            size="xs"
-                            title="Baixar Excel (XLSX) da Venda"
-                            onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
-                          />
-                          <ActionButton
-                            label="Duplicar"
-                            icon="📋"
-                            variant="subtle"
-                            size="xs"
-                            title="Duplicar Venda"
-                            onClick={() => handleDuplicateVenda(v)}
-                          />
-                          <ActionButton
-                            label="Excluir"
-                            icon="🗑️"
-                            variant="dangerSubtle"
-                            size="xs"
-                            title="Excluir Venda"
-                            onClick={() => setDeleteConfirmVenda(v)}
-                          />
                         </div>
                       </td>
                     </tr>
@@ -734,80 +670,34 @@ export default function Vendas() {
             {/* Mobile View Cards */}
             <div className="md:hidden divide-y divide-slate-100">
               {vendas.map((v) => (
-                <div key={v.id} className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
-                        {v.status === 'ORCAMENTO' ? (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            📝 Orçamento
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            ✓ Confirmada
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {v.status === 'ORCAMENTO' && (
-                        <button
-                          onClick={() => handleAprovarOrcamento(v)}
-                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[10px] font-bold shadow-xs active:scale-95 transition-all"
-                          title="Aprovar Orçamento"
-                        >
-                          ✓ Aprovar
-                        </button>
+                <div
+                  key={v.id}
+                  onClick={() => setSelectedVendaDetails(v)}
+                  className="p-4 space-y-2 cursor-pointer hover:bg-blue-50/30 transition-colors"
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
+                      {v.status === 'ORCAMENTO' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          📝 Orçamento
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          ✓ Confirmada
+                        </span>
                       )}
-                      <button
-                        onClick={() => handleOpenHistoricoModal(v)}
-                        className="p-1 text-emerald-600 hover:text-emerald-700"
-                        title="Histórico de Envios"
-                      >
-                        📩
-                      </button>
-                      <button
-                        onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
-                        className="p-1 text-slate-500 hover:text-blue-600"
-                        title="Baixar PDF da Venda"
-                      >
-                        📄
-                      </button>
-                      <button
-                        onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
-                        className="p-1 text-slate-500 hover:text-emerald-600"
-                        title="Baixar Excel (XLSX) da Venda"
-                      >
-                        📊
-                      </button>
-                      <button
-                        onClick={() => handleDuplicateVenda(v)}
-                        className="p-1 text-slate-500 hover:text-indigo-600"
-                        title="Duplicar venda"
-                      >
-                        📋
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmVenda(v)}
-                        className="p-1 text-slate-400 hover:text-rose-600"
-                        title="Excluir venda"
-                      >
-                        🗑️
-                      </button>
                     </div>
+                    <span className="text-xs text-blue-600 font-bold">Ver Detalhes 🔍</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">VALOR TOTAL</span>
-                      <span className="font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">FATURAMENTO</span>
-                      <span className="font-semibold text-slate-700">{v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias}d (Venc: ${v.dataVencimento})`}</span>
-                    </div>
+                  <div className="flex justify-between items-baseline">
+                    <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
+                    <span className="font-extrabold text-slate-900 text-sm">{formatCurrencyBRL(v.valorTotal)}</span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-500">
+                    Prazo: {v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias} dias`} | Venc: {v.dataVencimento}
                   </div>
                 </div>
               ))}
@@ -904,6 +794,207 @@ export default function Vendas() {
                 type="button"
                 onClick={() => setShowHistoricoModal(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl active:scale-95 transition-all"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes Completos da Venda */}
+      {selectedVendaDetails && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl my-auto animate-in zoom-in-95 duration-150 border border-slate-200 dark:border-slate-800 overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 p-4 sm:px-6 flex-shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Detalhes da Venda #{selectedVendaDetails.id}</h2>
+                  {selectedVendaDetails.status === 'ORCAMENTO' ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      📝 Orçamento
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      ✓ Confirmada
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Realizada em: <strong>{selectedVendaDetails.dataVenda}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedVendaDetails(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold p-1"
+                title="Fechar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+              {/* Cliente Block */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700 space-y-1">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Dados do Cliente</span>
+                <div className="font-bold text-slate-800 dark:text-slate-100 text-sm">{selectedVendaDetails.clienteNome}</div>
+                <div className="text-slate-600 dark:text-slate-300 font-mono text-xs">CPF/CNPJ: {selectedVendaDetails.cpfCnpj || '-'}</div>
+                {selectedVendaDetails.emailCliente && (
+                  <div className="text-slate-500 text-[11px]">E-mail: {selectedVendaDetails.emailCliente}</div>
+                )}
+              </div>
+
+              {/* Financial KPI Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Subtotal</span>
+                  <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                    {formatCurrencyBRL((selectedVendaDetails.valorTotal || 0) + (selectedVendaDetails.desconto || 0))}
+                  </span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Desconto</span>
+                  <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
+                    -{formatCurrencyBRL(selectedVendaDetails.desconto || 0)}
+                  </span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Custo Total</span>
+                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                    {formatCurrencyBRL(selectedVendaDetails.custoTotal || 0)}
+                  </span>
+                </div>
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-semibold block">Lucro Líquido</span>
+                  <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                    +{formatCurrencyBRL(selectedVendaDetails.lucroLiquido || 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Total and Payment terms */}
+              <div className="bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center shadow-sm">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Valor Total Final</span>
+                  <span className="text-lg font-bold">{formatCurrencyBRL(selectedVendaDetails.valorTotal)}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Faturamento & Prazo</span>
+                  <span className="text-xs font-medium text-blue-300">
+                    {selectedVendaDetails.prazoFaturamentoDias === 0 ? 'À Vista' : `${selectedVendaDetails.prazoFaturamentoDias} dias`}
+                    <span className="block text-[10px] text-slate-400">Vencimento: {selectedVendaDetails.dataVencimento}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Line Items List */}
+              <div className="space-y-2">
+                <h3 className="font-bold text-slate-700 dark:text-slate-300">Produtos / Itens da Venda:</h3>
+                {selectedVendaDetails.itens && selectedVendaDetails.itens.length > 0 ? (
+                  <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl divide-y divide-slate-200/60 dark:divide-slate-700 overflow-hidden">
+                    {selectedVendaDetails.itens.map((it, idx) => (
+                      <div key={idx} className="p-3 flex justify-between items-center text-xs">
+                        <div>
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            {it.sku ? `[${it.sku}] ` : ''}{it.nomeProduto}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Qtd: {it.quantidade}x | Custo: {formatCurrencyBRL(it.custoNoMomento || 0)} | Unit: {formatCurrencyBRL(it.precoNoMomento || it.precoUnitario || 0)}
+                          </div>
+                        </div>
+                        <div className="font-bold text-slate-900 dark:text-slate-100">
+                          {formatCurrencyBRL((it.precoNoMomento || it.precoUnitario || 0) * (it.quantidade || 1))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic text-xs">Nenhum item discriminado nesta venda.</p>
+                )}
+              </div>
+
+              {/* Action Buttons Section inside modal */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 p-4 rounded-xl space-y-2">
+                <span className="font-bold text-slate-800 dark:text-slate-200 text-xs block">Ações para esta Venda:</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedVendaDetails.status === 'ORCAMENTO' && (
+                    <ActionButton
+                      label="Aprovar Orçamento"
+                      icon="✓"
+                      variant="success"
+                      size="sm"
+                      title="Aprovar Orçamento e Gerar Parcelas no Financeiro"
+                      onClick={() => {
+                        const target = selectedVendaDetails;
+                        setSelectedVendaDetails(null);
+                        handleAprovarOrcamento(target);
+                      }}
+                    />
+                  )}
+                  <ActionButton
+                    label="Histórico de Envios"
+                    icon="📩"
+                    variant="successSubtle"
+                    size="sm"
+                    title="Histórico de Envios"
+                    onClick={() => {
+                      const target = selectedVendaDetails;
+                      setSelectedVendaDetails(null);
+                      handleOpenHistoricoModal(target);
+                    }}
+                  />
+                  <ActionButton
+                    label="Baixar PDF"
+                    icon="📄"
+                    variant="secondary"
+                    size="sm"
+                    title="Baixar PDF da Venda"
+                    onClick={() => handleDownloadSingleVendaPdf(selectedVendaDetails.id, 'pdf')}
+                  />
+                  <ActionButton
+                    label="Baixar Excel (XLSX)"
+                    icon="📊"
+                    variant="secondary"
+                    size="sm"
+                    title="Baixar Excel (XLSX) da Venda"
+                    onClick={() => handleDownloadSingleVendaPdf(selectedVendaDetails.id, 'xlsx')}
+                  />
+                  <ActionButton
+                    label="Duplicar Venda"
+                    icon="📋"
+                    variant="subtle"
+                    size="sm"
+                    title="Duplicar Venda"
+                    onClick={() => {
+                      const target = selectedVendaDetails;
+                      setSelectedVendaDetails(null);
+                      handleDuplicateVenda(target);
+                    }}
+                  />
+                  <ActionButton
+                    label="Excluir Venda"
+                    icon="🗑️"
+                    variant="dangerSubtle"
+                    size="sm"
+                    title="Excluir Venda"
+                    onClick={() => {
+                      const target = selectedVendaDetails;
+                      setSelectedVendaDetails(null);
+                      setDeleteConfirmVenda(target);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end p-4 sm:px-6 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedVendaDetails(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs active:scale-95 transition-all"
               >
                 Fechar
               </button>
