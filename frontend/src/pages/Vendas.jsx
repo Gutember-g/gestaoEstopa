@@ -619,8 +619,8 @@ export default function Vendas() {
           </div>
         ) : (
           <>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
+            <div className="hidden md:block overflow-x-auto pr-4">
+              <table className="w-full text-left text-xs text-slate-600 min-w-[1000px]">
                 <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-semibold text-slate-500 tracking-wider">
                   <tr>
                     <th className="p-4">ID Venda</th>
@@ -632,7 +632,7 @@ export default function Vendas() {
                     <th className="p-4">Desconto</th>
                     <th className="p-4">Lucro Líquido</th>
                     <th className="p-4">Prazo & Vencimento</th>
-                    <th className="p-4 text-right">Ações</th>
+                    <th className="p-4 pr-6 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -671,7 +671,7 @@ export default function Vendas() {
                           <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
                         </div>
                       </td>
-                      <td className="p-4 text-right space-x-1 whitespace-nowrap">
+                      <td className="p-4 pr-6 text-right space-x-1 whitespace-nowrap">
                         {v.status === 'ORCAMENTO' && (
                           <ActionButton
                             label="Aprovar Orçamento"
@@ -817,8 +817,8 @@ export default function Vendas() {
       {/* Modal - Histórico de Envios & Reenvio Manual */}
       {showHistoricoModal && selectedVendaForHistorico && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xl space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 text-xs">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-150 text-xs overflow-hidden">
+            <div className="flex justify-between items-center border-b border-slate-100 p-4 sm:px-6 flex-shrink-0">
               <div>
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <span>📩 Histórico de Envio da Venda #{selectedVendaForHistorico.id}</span>
@@ -833,68 +833,71 @@ export default function Vendas() {
               </button>
             </div>
 
-            {/* List of Dispatches */}
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-              {isFetchingHistorico ? (
-                <div className="p-6 text-center text-slate-400 animate-pulse">Carregando histórico de disparos...</div>
-              ) : historicoLogs.length === 0 ? (
-                <div className="p-6 text-center text-slate-400">Nenhum envio registrado para este pedido.</div>
-              ) : (
-                historicoLogs.map((log) => (
-                  <div key={log.id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex justify-between items-start gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          log.canal === 'EMAIL' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {log.canal === 'EMAIL' ? '📧 E-mail' : '💬 WhatsApp'}
-                        </span>
-                        <span className="font-mono text-slate-500 text-[10px]">[{log.formato}]</span>
-                        <span className="text-[10px] text-slate-400">{new Date(log.dataEnvio).toLocaleString('pt-BR')}</span>
-                      </div>
-                      <div className="font-semibold text-slate-800 text-xs">Destino: {log.destinatario}</div>
-                      {log.mensagemErro && (
-                        <div className="text-[10px] text-rose-600 bg-rose-50 p-1.5 rounded border border-rose-100 font-mono">
-                          {log.mensagemErro}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+              {/* List of Dispatches */}
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {isFetchingHistorico ? (
+                  <div className="p-6 text-center text-slate-400 animate-pulse">Carregando histórico de disparos...</div>
+                ) : historicoLogs.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400">Nenhum envio registrado para este pedido.</div>
+                ) : (
+                  historicoLogs.map((log) => (
+                    <div key={log.id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex justify-between items-start gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            log.canal === 'EMAIL' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {log.canal === 'EMAIL' ? '📧 E-mail' : '💬 WhatsApp'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {new Date(log.dataEnvio).toLocaleString('pt-BR')}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        log.status === 'SUCESSO' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        <div className="font-semibold text-slate-800">
+                          {log.destinatario}
+                        </div>
+                        {log.mensagemErro && (
+                          <div className="text-rose-600 text-[10px] bg-rose-50 p-1.5 rounded border border-rose-100">
+                            ⚠ {log.mensagemErro}
+                          </div>
+                        )}
+                      </div>
+
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        log.status === 'SUCESSO' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                       }`}>
-                        {log.status === 'SUCESSO' ? '✓ Enviado' : '⚠️ Erro'}
+                        {log.status}
                       </span>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
 
-            {/* Reenviar Manual Section */}
-            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
-              <span className="font-bold text-slate-800 text-xs block">⚡ Reenviar Documento Manualmente:</span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={isResending}
-                  onClick={() => handleReenviarManual('EMAIL')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
-                >
-                  <span>📧</span> Reenviar por E-mail
-                </button>
-                <button
-                  type="button"
-                  disabled={isResending}
-                  onClick={() => handleReenviarManual('WHATSAPP')}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
-                >
-                  <span>💬</span> Reenviar por WhatsApp
-                </button>
+              {/* Reenviar Ações Rápidas */}
+              <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl space-y-2">
+                <span className="font-bold text-slate-800 text-xs block">Reenviar Documento Manualmente</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleReenviarManual('EMAIL')}
+                    disabled={isResending}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    <span>📧</span> Reenviar por E-mail
+                  </button>
+
+                  <button
+                    onClick={() => handleReenviarManual('WHATSAPP')}
+                    disabled={isResending}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    <span>💬</span> Reenviar por WhatsApp
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-slate-100">
+            <div className="flex justify-end p-4 sm:px-6 border-t border-slate-100 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setShowHistoricoModal(false)}

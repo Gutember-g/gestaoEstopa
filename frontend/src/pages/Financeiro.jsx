@@ -198,8 +198,8 @@ export default function Financeiro() {
           </div>
         ) : (
           <>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+            <div className="hidden md:block overflow-x-auto pr-4">
+              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300 min-w-[850px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/80 dark:border-slate-800 uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
                   <tr>
                     <th className="p-4">Parcela / Venda</th>
@@ -208,7 +208,7 @@ export default function Financeiro() {
                     <th className="p-4">Data Pagamento</th>
                     <th className="p-4">Valor</th>
                     <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Ações</th>
+                    <th className="p-4 pr-6 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -230,7 +230,7 @@ export default function Financeiro() {
                           {p.status}
                         </span>
                       </td>
-                      <td className="p-4 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-4 pr-6 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
                         {p.status === 'PENDENTE' || p.status === 'ATRASADO' ? (
                           <ActionButton
                             label="Marcar Pago"
@@ -306,10 +306,10 @@ export default function Financeiro() {
 
       {/* Modal / Drawer de Detalhes da Venda (Item 4) */}
       {selectedVendaDetails && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 w-full max-w-2xl space-y-5 shadow-2xl my-auto animate-in zoom-in-95 duration-150 border border-slate-200 dark:border-slate-800">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl my-auto animate-in zoom-in-95 duration-150 border border-slate-200 dark:border-slate-800 overflow-hidden">
             {/* Header */}
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 p-4 sm:px-6 flex-shrink-0">
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Detalhes da Venda #{selectedVendaDetails.vendaId}</h2>
                 <p className="text-[11px] text-slate-400">Cliente: {selectedVendaDetails.clienteNome} ({selectedVendaDetails.cpfCnpj})</p>
@@ -322,68 +322,70 @@ export default function Financeiro() {
               </button>
             </div>
 
-            {/* Itens Comprados */}
-            <div className="space-y-2 text-xs">
-              <h3 className="font-bold text-slate-700 dark:text-slate-300">Produtos Vendidos:</h3>
-              {selectedVendaDetails.itens && selectedVendaDetails.itens.length > 0 ? (
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl divide-y divide-slate-200/60 dark:divide-slate-700 overflow-hidden">
-                  {selectedVendaDetails.itens.map((it, idx) => (
-                    <div key={idx} className="p-3 flex justify-between items-center">
-                      <div>
-                        <div className="font-bold text-slate-800 dark:text-slate-200">
-                          {it.nomeProduto}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 text-xs">
+              {/* Itens Comprados */}
+              <div className="space-y-2 text-xs">
+                <h3 className="font-bold text-slate-700 dark:text-slate-300">Produtos Vendidos:</h3>
+                {selectedVendaDetails.itens && selectedVendaDetails.itens.length > 0 ? (
+                  <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl divide-y divide-slate-200/60 dark:divide-slate-700 overflow-hidden">
+                    {selectedVendaDetails.itens.map((it, idx) => (
+                      <div key={idx} className="p-3 flex justify-between items-center">
+                        <div>
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            {it.nomeProduto}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Qtd: {it.quantidade}x | Valor Unit.: {formatCurrencyBRL(it.precoNoMomento)}
+                          </div>
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          Qtd: {it.quantidade}x | Valor Unit.: {formatCurrencyBRL(it.precoNoMomento)}
+                        <div className="font-bold text-slate-900 dark:text-slate-100">
+                          {formatCurrencyBRL((it.precoNoMomento || 0) * (it.quantidade || 1))}
                         </div>
                       </div>
-                      <div className="font-bold text-slate-900 dark:text-slate-100">
-                        {formatCurrencyBRL((it.precoNoMomento || 0) * (it.quantidade || 1))}
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic text-xs">Nenhum item discriminado nesta venda.</p>
+                )}
+              </div>
+
+              {/* Status das Parcelas / Cobranças */}
+              <div className="space-y-2 text-xs">
+                <h3 className="font-bold text-slate-700 dark:text-slate-300">Parcelas e Cobranças:</h3>
+                <div className="space-y-2">
+                  {selectedVendaDetails.parcelas.map((p) => (
+                    <div key={p.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-slate-800 dark:text-slate-200">
+                          Parcela #{p.numeroSequencial} — {formatCurrencyBRL(p.valor)}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Vencimento: {p.dataVencimento} {p.dataPagamento ? `| Pago em: ${p.dataPagamento}` : ''}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border ${statusBadges[p.status]}`}>
+                          {p.status}
+                        </span>
+                        {p.status !== 'PAGO' && (
+                          <ActionButton
+                            label="Marcar Pago"
+                            icon="✓"
+                            variant="success"
+                            size="xs"
+                            onClick={(e) => handleBaixarParcela(p.id, e)}
+                          />
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-slate-400 italic text-xs">Nenhum item discriminado nesta venda.</p>
-              )}
-            </div>
-
-            {/* Status das Parcelas / Cobranças */}
-            <div className="space-y-2 text-xs">
-              <h3 className="font-bold text-slate-700 dark:text-slate-300">Parcelas e Cobranças:</h3>
-              <div className="space-y-2">
-                {selectedVendaDetails.parcelas.map((p) => (
-                  <div key={p.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-slate-800 dark:text-slate-200">
-                        Parcela #{p.numeroSequencial} — {formatCurrencyBRL(p.valor)}
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        Vencimento: {p.dataVencimento} {p.dataPagamento ? `| Pago em: ${p.dataPagamento}` : ''}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md border ${statusBadges[p.status]}`}>
-                        {p.status}
-                      </span>
-                      {p.status !== 'PAGO' && (
-                        <ActionButton
-                          label="Marcar Pago"
-                          icon="✓"
-                          variant="success"
-                          size="xs"
-                          onClick={(e) => handleBaixarParcela(p.id, e)}
-                        />
-                      )}
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
             {/* Modal Footer with Duplication action (Item 5) */}
-            <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex justify-between items-center p-4 sm:px-6 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
               <ActionButton
                 label="Duplicar esta Venda"
                 icon="📋"

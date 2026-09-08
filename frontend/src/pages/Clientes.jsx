@@ -18,6 +18,7 @@ export default function Clientes() {
   const [deleteConfirmCliente, setDeleteConfirmCliente] = useState(null);
   const [historicoCliente, setHistoricoCliente] = useState(null);
   const [vendaDetalheModal, setVendaDetalheModal] = useState(null);
+  const [expandedObsId, setExpandedObsId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -584,8 +585,8 @@ export default function Clientes() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
+          <div className="hidden md:block overflow-x-auto pr-4">
+            <table className="w-full text-left text-xs text-slate-600 min-w-[850px]">
               <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
                 <tr>
                   <th className="p-4">Status</th>
@@ -594,7 +595,7 @@ export default function Clientes() {
                   <th className="p-4">Inscrição Estadual</th>
                   <th className="p-4">Contato</th>
                   <th className="p-4">Observação</th>
-                  <th className="p-4 text-right">Ações</th>
+                  <th className="p-4 pr-6 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -625,8 +626,18 @@ export default function Clientes() {
                       <div>{c.telefone}</div>
                       <div className="text-[11px] text-slate-400">{c.email}</div>
                     </td>
-                    <td className="p-4 text-slate-500 max-w-xs truncate">{c.observacao || '-'}</td>
-                    <td className="p-4 text-right space-x-1 whitespace-nowrap">
+                    <td
+                      className={`p-4 text-slate-500 max-w-xs transition-all ${
+                        expandedObsId === c.id
+                          ? 'whitespace-normal break-words bg-slate-50 border border-slate-200/70 rounded-lg cursor-pointer'
+                          : 'truncate cursor-pointer hover:text-slate-800'
+                      }`}
+                      title={c.observacao ? `${c.observacao} (Clique para ${expandedObsId === c.id ? 'recolher' : 'expandir'})` : undefined}
+                      onClick={() => setExpandedObsId(expandedObsId === c.id ? null : c.id)}
+                    >
+                      {c.observacao || '-'}
+                    </td>
+                    <td className="p-4 pr-6 text-right space-x-1 whitespace-nowrap">
                       <ActionButton
                         label="Histórico"
                         icon="📊"
@@ -712,10 +723,10 @@ export default function Clientes() {
 
       {/* Modal / Drawer de Histórico de Vendas do Cliente */}
       {historicoCliente && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-3xl space-y-5 shadow-2xl my-auto animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl my-auto animate-in zoom-in-95 duration-150 overflow-hidden">
             {/* Header */}
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div className="flex justify-between items-center border-b border-slate-100 p-4 sm:px-6 sm:py-4 flex-shrink-0">
               <div>
                 <h2 className="text-base font-bold text-slate-900">
                   Histórico Comercial — {historicoCliente.cliente.nome}
@@ -730,64 +741,66 @@ export default function Clientes() {
               </button>
             </div>
 
-            {/* KPI Cards Header Summary */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total de Vendas</span>
-                <span className="text-base font-extrabold text-slate-800">{historicoCliente.vendasCount} pedidos</span>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Valor Acumulado</span>
-                <span className="text-base font-extrabold text-blue-600">{formatCurrencyBRL(historicoCliente.totalComprado)}</span>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Ticket Médio</span>
-                <span className="text-base font-extrabold text-emerald-600">{formatCurrencyBRL(historicoCliente.ticketMedio)}</span>
-              </div>
-            </div>
-
-            {/* Sales Timeline List (Descending date) */}
-            <div className="space-y-2 text-xs">
-              <h3 className="font-bold text-slate-700">Histórico de Pedidos de Venda:</h3>
-              {historicoCliente.vendas.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-xl text-slate-400">
-                  Nenhuma venda cadastrada para este cliente até o momento.
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 text-xs">
+              {/* KPI Cards Header Summary */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total de Vendas</span>
+                  <span className="text-base font-extrabold text-slate-800">{historicoCliente.vendasCount} pedidos</span>
                 </div>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {historicoCliente.vendas.map((v) => (
-                    <div
-                      key={v.id}
-                      onClick={() => setVendaDetalheModal(v)}
-                      className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-800 flex items-center gap-2">
-                          <span>Venda #{v.id}</span>
-                          <span className="text-slate-400 text-[10px] font-mono">({v.dataVenda})</span>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Valor Acumulado</span>
+                  <span className="text-base font-extrabold text-blue-600">{formatCurrencyBRL(historicoCliente.totalComprado)}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Ticket Médio</span>
+                  <span className="text-base font-extrabold text-emerald-600">{formatCurrencyBRL(historicoCliente.ticketMedio)}</span>
+                </div>
+              </div>
+
+              {/* Sales Timeline List (Descending date) */}
+              <div className="space-y-2 text-xs">
+                <h3 className="font-bold text-slate-700">Histórico de Pedidos de Venda:</h3>
+                {historicoCliente.vendas.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 rounded-xl text-slate-400">
+                    Nenhuma venda cadastrada para este cliente até o momento.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {historicoCliente.vendas.map((v) => (
+                      <div
+                        key={v.id}
+                        onClick={() => setVendaDetalheModal(v)}
+                        className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-800 flex items-center gap-2">
+                            <span>Venda #{v.id}</span>
+                            <span className="text-slate-400 text-[10px] font-mono">({v.dataVenda})</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {v.itens.length} item(ns) | Prazo: {v.prazoFaturamentoDias} dias
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-500">
-                          {v.itens.length} item(ns) | Prazo: {v.prazoFaturamentoDias} dias
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="font-extrabold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</div>
+                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border ${statusBadges[v.status]}`}>
+                              {v.status}
+                            </span>
+                          </div>
+                          <span className="text-slate-400 text-xs">🔍</span>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className="font-extrabold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</div>
-                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border ${statusBadges[v.status]}`}>
-                            {v.status}
-                          </span>
-                        </div>
-                        <span className="text-slate-400 text-xs">🔍</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Modal Quick Actions */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2 p-4 sm:px-6 border-t border-slate-100 flex-shrink-0">
               <div className="flex gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => {
@@ -878,15 +891,15 @@ export default function Clientes() {
       {/* Modal Form Novo / Editar Cliente */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center border-b pb-3">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-150 overflow-hidden">
+            <div className="flex justify-between items-center border-b p-4 sm:px-6 flex-shrink-0">
               <h2 className="text-base font-bold text-slate-800">
                 {editingClienteId ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}
               </h2>
               <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Nome Razão Social *</label>
                 <input

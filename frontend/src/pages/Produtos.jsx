@@ -201,8 +201,8 @@ export default function Produtos() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
+          <div className="overflow-x-auto pr-4">
+            <table className="w-full text-left text-xs text-slate-600 min-w-[700px]">
               <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
                 <tr>
                   <th className="p-4">Produto</th>
@@ -210,7 +210,7 @@ export default function Produtos() {
                   <th className="p-4">Preço de Venda</th>
                   <th className="p-4">Margem de Lucro</th>
                   <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Ações</th>
+                  <th className="p-4 pr-6 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -242,7 +242,7 @@ export default function Produtos() {
                         {p.status}
                       </span>
                     </td>
-                    <td className="p-4 text-right space-x-1 whitespace-nowrap">
+                    <td className="p-4 pr-6 text-right space-x-1 whitespace-nowrap">
                       <ActionButton
                         label="Editar"
                         icon="✏️"
@@ -271,15 +271,15 @@ export default function Produtos() {
       {/* Modal Novo / Editar Produto */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center border-b pb-3">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-150 overflow-hidden">
+            <div className="flex justify-between items-center border-b p-4 sm:px-6 flex-shrink-0">
               <h2 className="text-base font-bold text-slate-800">
                 {editingProdutoId ? 'Editar Produto' : 'Cadastrar Produto'}
               </h2>
               <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Nome do Produto *</label>
                 <input
