@@ -4,6 +4,7 @@ import api from '../services/api';
 import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
 import { useToast } from '../context/ToastContext';
 import ActionButton from './ActionButton';
+import { dispatchSaleDocument } from '../utils/dispatchHelper';
 
 const createEmptyItem = () => ({
   produtoId: '',
@@ -208,21 +209,24 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
       const res = await api.post('/vendas', payload);
       const salvaId = res.data?.id;
 
-      // Disparo automático de e-mail / whatsapp se selecionado
-      if (salvaId && (enviarEmail || enviarWhatsapp)) {
-        try {
-          await api.post(`/vendas/${salvaId}/emissao-envio`, {
-            enviarEmail,
-            enviarWhatsapp,
-            formatoDocumento,
-          });
-        } catch {
-          // Log visual sem travar a venda
-        }
-      }
-
       const statusDesc = targetStatus === 'ORCAMENTO' ? 'Orçamento de Venda' : 'Venda Confirmada';
-      showSuccess(`${statusDesc} salvo(a) com sucesso! ✓`);
+      showSuccess(`${statusDesc} #${salvaId} salvo(a) com sucesso! ✓`);
+
+      if (salvaId && (enviarEmail || enviarWhatsapp)) {
+        await dispatchSaleDocument({
+          vendaId: salvaId,
+          status: targetStatus,
+          cliente: selectedCliente,
+          itens: validItens,
+          valorTotal: valorTotalFinal,
+          prazoDias: prazoDiasFinal,
+          enviarEmail,
+          enviarWhatsapp,
+          formatoDocumento,
+          showSuccess,
+          showError,
+        });
+      }
 
       queryClient.invalidateQueries({ queryKey: ['vendas'] });
       queryClient.invalidateQueries({ queryKey: ['parcelas'] });

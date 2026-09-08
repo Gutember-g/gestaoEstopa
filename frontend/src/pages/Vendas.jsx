@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import MonthFilter from '../components/MonthFilter';
 import ActionButton from '../components/ActionButton';
 import { useVendaModal } from '../context/VendaModalContext';
+import { dispatchSaleDocument } from '../utils/dispatchHelper';
 
 export default function Vendas() {
   const { showSuccess, showError } = useToast();
@@ -356,15 +357,30 @@ export default function Vendas() {
     setIsResending(true);
 
     try {
-      await api.post(`/vendas/${selectedVendaForHistorico.id}/emissao-envio`, {
+      const v = selectedVendaForHistorico;
+      const clienteObj = {
+        nome: v.clienteNome,
+        email: v.clienteEmail || v.email,
+        telefone: v.clienteTelefone || v.telefone,
+      };
+
+      await dispatchSaleDocument({
+        vendaId: v.id,
+        status: v.status,
+        cliente: clienteObj,
+        itens: v.itens || [],
+        valorTotal: v.valorTotal || 0,
+        prazoDias: v.prazoFaturamentoDias || 0,
         enviarEmail: canal === 'EMAIL',
         enviarWhatsapp: canal === 'WHATSAPP',
         formatoDocumento: 'pdf',
+        showSuccess,
+        showError,
       });
-      showSuccess(`Reenvio manual por ${canal === 'EMAIL' ? 'E-mail' : 'WhatsApp'} efetuado com sucesso! ✓`);
-      handleOpenHistoricoModal(selectedVendaForHistorico);
+
+      handleOpenHistoricoModal(v);
     } catch {
-      showSuccess(`Reenvio manual por ${canal === 'EMAIL' ? 'E-mail' : 'WhatsApp'} concluído! ✓`);
+      showError('Erro ao reenviar documento.');
     } finally {
       setIsResending(false);
     }
