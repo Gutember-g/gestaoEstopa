@@ -585,8 +585,8 @@ export default function Clientes() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-          <div className="hidden md:block overflow-x-auto pr-4">
-            <table className="w-full text-left text-xs text-slate-600 min-w-[850px]">
+          <div className="hidden md:block overflow-x-auto pr-2">
+            <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
                 <tr>
                   <th className="p-4">Status</th>
@@ -594,13 +594,13 @@ export default function Clientes() {
                   <th className="p-4">CPF / CNPJ</th>
                   <th className="p-4">Inscrição Estadual</th>
                   <th className="p-4">Contato</th>
-                  <th className="p-4">Observação</th>
-                  <th className="p-4 pr-6 text-right">Ações</th>
+                  <th className="p-4 max-w-[250px]">Observação</th>
+                  <th className="p-4 pr-6 text-right w-44">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredClientes.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/80 transition-colors group">
+                  <tr key={c.id} className="hover:bg-slate-50/80 transition-colors group h-auto">
                     <td className="p-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                         c.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
@@ -627,41 +627,38 @@ export default function Clientes() {
                       <div className="text-[11px] text-slate-400">{c.email}</div>
                     </td>
                     <td
-                      className={`p-4 text-slate-500 max-w-xs transition-all ${
-                        expandedObsId === c.id
-                          ? 'whitespace-normal break-words bg-slate-50 border border-slate-200/70 rounded-lg cursor-pointer'
-                          : 'truncate cursor-pointer hover:text-slate-800'
-                      }`}
-                      title={c.observacao ? `${c.observacao} (Clique para ${expandedObsId === c.id ? 'recolher' : 'expandir'})` : undefined}
-                      onClick={() => setExpandedObsId(expandedObsId === c.id ? null : c.id)}
+                      className="p-4 text-slate-500 max-w-[250px] whitespace-normal break-words leading-relaxed"
+                      title={c.observacao || undefined}
                     >
                       {c.observacao || '-'}
                     </td>
-                    <td className="p-4 pr-6 text-right space-x-1 whitespace-nowrap">
-                      <ActionButton
-                        label="Histórico"
-                        icon="📊"
-                        variant="subtle"
-                        size="xs"
-                        title="Ver histórico de compras"
-                        onClick={() => handleOpenHistorico(c)}
-                      />
-                      <ActionButton
-                        label="Editar"
-                        icon="✏️"
-                        variant="outline"
-                        size="xs"
-                        title="Editar cliente"
-                        onClick={() => handleOpenEditModal(c)}
-                      />
-                      <ActionButton
-                        label="Excluir"
-                        icon="🗑️"
-                        variant="dangerSubtle"
-                        size="xs"
-                        title="Excluir cliente"
-                        onClick={() => setDeleteConfirmCliente(c)}
-                      />
+                    <td className="p-4 pr-6 text-right w-44">
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <ActionButton
+                          label="Histórico"
+                          icon="📊"
+                          variant="subtle"
+                          size="xs"
+                          title="Ver histórico de compras"
+                          onClick={() => handleOpenHistorico(c)}
+                        />
+                        <ActionButton
+                          label="Editar"
+                          icon="✏️"
+                          variant="outline"
+                          size="xs"
+                          title="Editar cliente"
+                          onClick={() => handleOpenEditModal(c)}
+                        />
+                        <ActionButton
+                          label="Excluir"
+                          icon="🗑️"
+                          variant="dangerSubtle"
+                          size="xs"
+                          title="Excluir cliente"
+                          onClick={() => setDeleteConfirmCliente(c)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

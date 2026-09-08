@@ -201,8 +201,8 @@ export default function Produtos() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto pr-4">
-            <table className="w-full text-left text-xs text-slate-600 min-w-[700px]">
+          <div className="overflow-x-auto pr-2">
+            <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
                 <tr>
                   <th className="p-4">Produto</th>
@@ -210,12 +210,12 @@ export default function Produtos() {
                   <th className="p-4">Preço de Venda</th>
                   <th className="p-4">Margem de Lucro</th>
                   <th className="p-4">Status</th>
-                  <th className="p-4 pr-6 text-right">Ações</th>
+                  <th className="p-4 pr-6 text-right w-36">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {produtos.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors h-auto">
                     <td className="p-4">
                       <div className="font-bold text-slate-800 text-sm">{p.nome}</div>
                       {p.sku && <div className="text-[10px] text-slate-400 font-mono">{p.sku}</div>}
@@ -242,23 +242,25 @@ export default function Produtos() {
                         {p.status}
                       </span>
                     </td>
-                    <td className="p-4 pr-6 text-right space-x-1 whitespace-nowrap">
-                      <ActionButton
-                        label="Editar"
-                        icon="✏️"
-                        variant="outline"
-                        size="xs"
-                        title="Editar produto"
-                        onClick={() => handleOpenEditModal(p)}
-                      />
-                      <ActionButton
-                        label="Excluir"
-                        icon="🗑️"
-                        variant="dangerSubtle"
-                        size="xs"
-                        title="Excluir produto"
-                        onClick={() => setDeleteConfirmProd(p)}
-                      />
+                    <td className="p-4 pr-6 text-right w-36">
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <ActionButton
+                          label="Editar"
+                          icon="✏️"
+                          variant="outline"
+                          size="xs"
+                          title="Editar produto"
+                          onClick={() => handleOpenEditModal(p)}
+                        />
+                        <ActionButton
+                          label="Excluir"
+                          icon="🗑️"
+                          variant="dangerSubtle"
+                          size="xs"
+                          title="Excluir produto"
+                          onClick={() => setDeleteConfirmProd(p)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

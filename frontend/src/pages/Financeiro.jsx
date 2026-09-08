@@ -198,8 +198,8 @@ export default function Financeiro() {
           </div>
         ) : (
           <>
-            <div className="hidden md:block overflow-x-auto pr-4">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300 min-w-[850px]">
+            <div className="hidden md:block overflow-x-auto pr-2">
+              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
                 <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/80 dark:border-slate-800 uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
                   <tr>
                     <th className="p-4">Parcela / Venda</th>
@@ -208,7 +208,7 @@ export default function Financeiro() {
                     <th className="p-4">Data Pagamento</th>
                     <th className="p-4">Valor</th>
                     <th className="p-4">Status</th>
-                    <th className="p-4 pr-6 text-right">Ações</th>
+                    <th className="p-4 pr-6 text-right w-44">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -216,7 +216,7 @@ export default function Financeiro() {
                     <tr
                       key={p.id}
                       onClick={() => handleRowClick(p)}
-                      className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group h-auto"
                     >
                       <td className="p-4 font-mono font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                         Parc. #{p.numeroSequencial} (Venda #{p.vendaId})
@@ -230,25 +230,27 @@ export default function Financeiro() {
                           {p.status}
                         </span>
                       </td>
-                      <td className="p-4 pr-6 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                        {p.status === 'PENDENTE' || p.status === 'ATRASADO' ? (
+                      <td className="p-4 pr-6 text-right w-44" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex flex-wrap justify-end gap-1.5">
+                          {p.status === 'PENDENTE' || p.status === 'ATRASADO' ? (
+                            <ActionButton
+                              label="Marcar Pago"
+                              icon="✓"
+                              variant="success"
+                              size="xs"
+                              onClick={(e) => handleBaixarParcela(p.id, e)}
+                            />
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-medium self-center">Concluído ✓</span>
+                          )}
                           <ActionButton
-                            label="Marcar Pago"
-                            icon="✓"
-                            variant="success"
+                            label="Detalhes"
+                            icon="👁️"
+                            variant="secondary"
                             size="xs"
-                            onClick={(e) => handleBaixarParcela(p.id, e)}
+                            onClick={() => handleRowClick(p)}
                           />
-                        ) : (
-                          <span className="text-[11px] text-slate-400 font-medium">Concluído ✓</span>
-                        )}
-                        <ActionButton
-                          label="Detalhes"
-                          icon="👁️"
-                          variant="secondary"
-                          size="xs"
-                          onClick={() => handleRowClick(p)}
-                        />
+                        </div>
                       </td>
                     </tr>
                   ))}

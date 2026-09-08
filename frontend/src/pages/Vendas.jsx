@@ -619,8 +619,8 @@ export default function Vendas() {
           </div>
         ) : (
           <>
-            <div className="hidden md:block overflow-x-auto pr-4">
-              <table className="w-full text-left text-xs text-slate-600 min-w-[1000px]">
+            <div className="hidden md:block overflow-x-auto pr-2">
+              <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-semibold text-slate-500 tracking-wider">
                   <tr>
                     <th className="p-4">ID Venda</th>
@@ -632,12 +632,12 @@ export default function Vendas() {
                     <th className="p-4">Desconto</th>
                     <th className="p-4">Lucro Líquido</th>
                     <th className="p-4">Prazo & Vencimento</th>
-                    <th className="p-4 pr-6 text-right">Ações</th>
+                    <th className="p-4 pr-6 text-right w-48">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {vendas.map((v) => (
-                    <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={v.id} className="hover:bg-slate-50/80 transition-colors h-auto">
                       <td className="p-4 font-mono font-bold text-slate-900">#{v.id}</td>
                       <td className="p-4">
                         {v.status === 'ORCAMENTO' ? (
@@ -671,57 +671,59 @@ export default function Vendas() {
                           <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
                         </div>
                       </td>
-                      <td className="p-4 pr-6 text-right space-x-1 whitespace-nowrap">
-                        {v.status === 'ORCAMENTO' && (
+                      <td className="p-4 pr-6 text-right w-48">
+                        <div className="flex flex-wrap justify-end gap-1.5">
+                          {v.status === 'ORCAMENTO' && (
+                            <ActionButton
+                              label="Aprovar Orçamento"
+                              icon="✓"
+                              variant="success"
+                              size="xs"
+                              title="Aprovar Orçamento e Gerar Parcelas no Financeiro"
+                              onClick={() => handleAprovarOrcamento(v)}
+                            />
+                          )}
                           <ActionButton
-                            label="Aprovar Orçamento"
-                            icon="✓"
-                            variant="success"
+                            label="Envios"
+                            icon="📩"
+                            variant="successSubtle"
                             size="xs"
-                            title="Aprovar Orçamento e Gerar Parcelas no Financeiro"
-                            onClick={() => handleAprovarOrcamento(v)}
+                            title="Histórico de Envios"
+                            onClick={() => handleOpenHistoricoModal(v)}
                           />
-                        )}
-                        <ActionButton
-                          label="Envios"
-                          icon="📩"
-                          variant="successSubtle"
-                          size="xs"
-                          title="Histórico de Envios"
-                          onClick={() => handleOpenHistoricoModal(v)}
-                        />
-                        <ActionButton
-                          label="PDF"
-                          icon="📄"
-                          variant="secondary"
-                          size="xs"
-                          title="Baixar PDF da Venda"
-                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
-                        />
-                        <ActionButton
-                          label="Excel"
-                          icon="📊"
-                          variant="secondary"
-                          size="xs"
-                          title="Baixar Excel (XLSX) da Venda"
-                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
-                        />
-                        <ActionButton
-                          label="Duplicar"
-                          icon="📋"
-                          variant="subtle"
-                          size="xs"
-                          title="Duplicar Venda"
-                          onClick={() => handleDuplicateVenda(v)}
-                        />
-                        <ActionButton
-                          label="Excluir"
-                          icon="🗑️"
-                          variant="dangerSubtle"
-                          size="xs"
-                          title="Excluir Venda"
-                          onClick={() => setDeleteConfirmVenda(v)}
-                        />
+                          <ActionButton
+                            label="PDF"
+                            icon="📄"
+                            variant="secondary"
+                            size="xs"
+                            title="Baixar PDF da Venda"
+                            onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
+                          />
+                          <ActionButton
+                            label="Excel"
+                            icon="📊"
+                            variant="secondary"
+                            size="xs"
+                            title="Baixar Excel (XLSX) da Venda"
+                            onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
+                          />
+                          <ActionButton
+                            label="Duplicar"
+                            icon="📋"
+                            variant="subtle"
+                            size="xs"
+                            title="Duplicar Venda"
+                            onClick={() => handleDuplicateVenda(v)}
+                          />
+                          <ActionButton
+                            label="Excluir"
+                            icon="🗑️"
+                            variant="dangerSubtle"
+                            size="xs"
+                            title="Excluir Venda"
+                            onClick={() => setDeleteConfirmVenda(v)}
+                          />
+                        </div>
                       </td>
                     </tr>
                   ))}
