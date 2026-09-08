@@ -252,7 +252,9 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
           </button>
         </div>
 
-        <form onSubmit={(e) => e.preventDefault()} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+        <form onSubmit={(e) => e.preventDefault()} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
           {/* 1. Seleção de Cliente */}
           <div>
             <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">1. Selecionar Cliente *</label>
@@ -505,8 +507,10 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
             </div>
           </div>
 
-          {/* Modal Actions: TWO distinct submit options (Item 3.4) */}
-          <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          </div>
+
+          {/* Modal Actions Fixed Footer */}
+          <div className="flex-shrink-0 p-3 sm:px-6 sm:py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col-reverse sm:flex-row justify-end gap-2 z-10">
             <ActionButton
               label="Cancelar"
               variant="secondary"

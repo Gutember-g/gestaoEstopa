@@ -201,7 +201,7 @@ export default function Produtos() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto pr-2">
+          <div className="hidden md:block overflow-x-auto pr-2">
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
                 <tr>
@@ -266,6 +266,53 @@ export default function Produtos() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile View Cards */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {produtos.map((p) => (
+              <div key={p.id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-bold text-sm text-slate-800">{p.nome}</div>
+                    {p.sku && <div className="text-[10px] text-slate-400 font-mono">{p.sku}</div>}
+                    <div className="mt-1">
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
+                        p.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ActionButton
+                      label="Editar"
+                      icon="✏️"
+                      variant="outline"
+                      size="xs"
+                      title="Editar produto"
+                      onClick={() => handleOpenEditModal(p)}
+                    />
+                    <ActionButton
+                      label="Excluir"
+                      icon="🗑️"
+                      variant="dangerSubtle"
+                      size="xs"
+                      title="Excluir produto"
+                      onClick={() => setDeleteConfirmProd(p)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-100">
+                  <span className="text-slate-500 font-medium">Custo: {formatCurrencyBRL(p.precoCusto)}</span>
+                  <span className="font-extrabold text-blue-600 font-mono text-xs">Venda: {formatCurrencyBRL(p.precoVenda)}</span>
+                  <span className="font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[10px]">
+                    +{typeof p.margemLucro === 'number' ? p.margemLucro.toFixed(2).replace('.', ',') : p.margemLucro}%
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
