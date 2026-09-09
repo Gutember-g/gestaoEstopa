@@ -2,9 +2,11 @@ import api from '../services/api';
 import { formatCurrencyBRL } from './money';
 
 export const isMobileDevice = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    typeof navigator !== 'undefined' ? navigator.userAgent : ''
-  );
+  if (typeof window === 'undefined') return false;
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera || '';
+  const isTouchMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  const isSmallScreen = window.innerWidth <= 768;
+  return isTouchMobile || isSmallScreen;
 };
 
 export const cleanPhoneForWhatsApp = (phoneStr) => {
@@ -73,38 +75,101 @@ export const dispatchSaleDocument = async ({
   showSuccess = console.log,
   showError = console.error,
 }) => {
-  const tipoStr = status === 'ORCAMENTO' ? 'Orçamento' : 'Venda Confirmada';
-  const clienteNome = cliente?.nome || 'Cliente';
-  const clienteEmail = cliente?.email?.trim();
-  const clientePhone = cliente?.telefone?.trim();
-  const valorTotalFormatted = formatCurrencyBRL(valorTotal);
-  const prazoStr = prazoDias === 0 ? 'À Vista (0 dias)' : `${prazoDias} dias`;
-
-  // Step 1: Trigger PDF Download if Email or WhatsApp is selected
-  if (enviarEmail || enviarWhatsapp) {
-    await downloadSaleDocument(vendaId, formatoDocumento);
+  // CRITICAL FOR POPUP BLOCKER BYPASS:
+  // If sending via WhatsApp, synchronously open a placeholder window during user click handling before any async await calls!
+  let waWindow = null;
+  if (enviarWhatsapp) {
+    try {
+      waWindow = window.open('about:blank', '_blank');
+    } catch {
+      waWindow = null;
+    }
   }
 
-  // Record dispatch log on backend
   try {
-    await api.post(`/vendas/${vendaId}/emissao-envio`, {
-      enviarEmail,
-      enviarWhatsapp,
-      formatoDocumento,
-    });
-  } catch (e) {
-    console.warn('Falha ao gravar log no backend:', e);
-  }
+    let clienteNome = cliente?.nome || cliente?.clienteNome || 'Cliente';
+    let clienteEmail = (cliente?.email || cliente?.clienteEmail || '').trim();
+    let clientePhone = (cliente?.telefone || cliente?.clienteTelefone || '').trim();
+    const clienteId = cliente?.id || cliente?.clienteId;
 
-  // Build items summary text
-  const itensSummary = itens
-    .map((it) => `- ${it.quantidade}x ${it.nomeProduto || it.sku || 'Produto'} (${formatCurrencyBRL(it.precoNoMomento || it.precoUnitario || 0)})`)
-    .join('\n');
+    // Resolve client details from API if email or phone is missing
+    if ((!clienteEmail || !clientePhone) && (clienteId || clienteNome)) {
+      try {
+        const resAll = await api.get('/clientes');
+        const list = Array.isArray(resAll.data) ? resAll.data : (resAll.data?.content || []);
+        const found = list.find(
+          (c) => String(c.id) === String(clienteId) || c.nome?.toLowerCase() === clienteNome?.toLowerCase()
+        );
+        if (found) {
+          if (!clienteEmail && found.email) clienteEmail = found.email.trim();
+          if (!clientePhone && found.telefone) clientePhone = found.telefone.trim();
+          if (!clienteNome && found.nome) clienteNome = found.nome;
+        }
+      } catch (e) {
+        console.warn('Falha ao buscar dados cadastrais do cliente:', e);
+      }
+    }
 
-  // Step 2: Handle Email dispatch
-  if (enviarEmail && clienteEmail) {
-    const subject = `${tipoStr} #${vendaId} - FlowERP`;
-    const body = `Olá, ${clienteNome}!
+    // Resolve sale details from API if items or total is missing
+    let finalItens = itens;
+    let finalValorTotal = valorTotal;
+    let finalPrazoDias = prazoDias;
+    let finalStatus = status;
+
+    if (!finalItens || finalItens.length === 0 || !finalValorTotal) {
+      try {
+        const resVenda = await api.get(`/vendas/${vendaId}`);
+        if (resVenda.data) {
+          if ((!finalItens || finalItens.length === 0) && resVenda.data.itens) {
+            finalItens = resVenda.data.itens;
+          }
+          if (!finalValorTotal && resVenda.data.valorTotal) {
+            finalValorTotal = resVenda.data.valorTotal;
+          }
+          if (resVenda.data.prazoFaturamentoDias !== undefined) {
+            finalPrazoDias = resVenda.data.prazoFaturamentoDias;
+          }
+          if (resVenda.data.status) {
+            finalStatus = resVenda.data.status;
+          }
+          if (!clienteNome && resVenda.data.clienteNome) {
+            clienteNome = resVenda.data.clienteNome;
+          }
+        }
+      } catch (e) {
+        console.warn('Falha ao buscar detalhes da venda:', e);
+      }
+    }
+
+    const tipoStr = finalStatus === 'ORCAMENTO' ? 'Orçamento' : 'Venda Confirmada';
+    const valorTotalFormatted = formatCurrencyBRL(finalValorTotal);
+    const prazoStr = finalPrazoDias === 0 ? 'À Vista (0 dias)' : `${finalPrazoDias} dias`;
+
+    // Step 1: Download PDF
+    if (enviarEmail || enviarWhatsapp) {
+      await downloadSaleDocument(vendaId, formatoDocumento);
+    }
+
+    // Step 2: Record dispatch log on backend API
+    try {
+      await api.post(`/vendas/${vendaId}/emissao-envio`, {
+        enviarEmail,
+        enviarWhatsapp,
+        formatoDocumento,
+      });
+    } catch (e) {
+      console.warn('Falha ao gravar log no backend:', e);
+    }
+
+    // Build items summary text
+    const itensSummary = (finalItens || [])
+      .map((it) => `- ${it.quantidade || 1}x ${it.nomeProduto || it.sku || 'Produto'} (${formatCurrencyBRL(it.precoNoMomento || it.precoUnitario || 0)})`)
+      .join('\n');
+
+    // Step 3: Handle Email dispatch (mailto:)
+    if (enviarEmail && clienteEmail) {
+      const subject = `${tipoStr} #${vendaId} - FlowERP`;
+      const body = `Olá, ${clienteNome}!
 
 Segue o resumo do seu ${tipoStr} #${vendaId}:
 
@@ -114,22 +179,23 @@ Segue o resumo do seu ${tipoStr} #${vendaId}:
 • Prazo de Faturamento: ${prazoStr}
 
 Itens do Pedido:
-${itensSummary}
+${itensSummary || '- Itens conforme discriminado em anexo'}
 
 O documento em PDF foi baixado em seu dispositivo. Por favor, anexe o PDF a este e-mail antes de enviar!
 
 Atenciosamente,
 Equipe FlowERP`;
 
-    const mailtoUrl = `mailto:${encodeURIComponent(clienteEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoUrl;
-  }
+      const mailtoUrl = `mailto:${encodeURIComponent(clienteEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailtoUrl;
+    }
 
-  // Step 3: Handle WhatsApp dispatch
-  if (enviarWhatsapp && clientePhone) {
-    const cleanPhone = cleanPhoneForWhatsApp(clientePhone);
+    // Step 4: Handle WhatsApp dispatch
+    if (enviarWhatsapp) {
+      if (clientePhone) {
+        const cleanPhone = cleanPhoneForWhatsApp(clientePhone);
 
-    const waText = `Olá, ${clienteNome}! Segue o resumo do seu *${tipoStr.toUpperCase()} #${vendaId}*:
+        const waText = `Olá, ${clienteNome}! Segue o resumo do seu *${tipoStr.toUpperCase()} #${vendaId}*:
 
 📋 *Pedido #${vendaId}* (${tipoStr})
 👤 *Cliente:* ${clienteNome}
@@ -137,51 +203,55 @@ Equipe FlowERP`;
 📅 *Prazo:* ${prazoStr}
 
 📦 *Itens:*
-${itensSummary}
+${itensSummary || '- Itens conforme discriminado no PDF'}
 
 📄 O documento em PDF acabou de ser baixado no seu dispositivo e será enviado em seguida nesta conversa. Por favor, confirme o recebimento!`;
 
-    const encodedText = encodeURIComponent(waText);
-    const isMobile = isMobileDevice();
+        const encodedText = encodeURIComponent(waText);
+        const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
 
-    let waUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
-    if (isMobile) {
-      waUrl = `whatsapp://send?phone=${cleanPhone}&text=${encodedText}`;
-    } else {
-      waUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
+        if (waWindow && !waWindow.closed) {
+          waWindow.location.href = waUrl;
+        } else {
+          window.open(waUrl, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        if (waWindow && !waWindow.closed) {
+          waWindow.close();
+        }
+      }
     }
 
-    // Small delay if email was also opened to prevent pop-up blocking
-    const delay = enviarEmail ? 600 : 100;
-    setTimeout(() => {
-      window.open(waUrl, '_blank', 'noopener,noreferrer');
-    }, delay);
-  }
-
-  // Step 4: Show clear, friendly user notifications with attachment instructions
-  if (enviarEmail && enviarWhatsapp) {
-    showSuccess(
-      `PDF baixado! Anexe o arquivo no E-mail e no WhatsApp que foram abertos. 📎✓`
-    );
-  } else if (enviarEmail) {
-    if (clienteEmail) {
+    // Step 5: Show clean notification toasts with clear user instructions
+    if (enviarEmail && enviarWhatsapp) {
       showSuccess(
-        `PDF baixado — anexe o arquivo ao e-mail que foi aberto antes de enviar. 📧✓`
+        `PDF baixado! Anexe o arquivo no E-mail e no WhatsApp que foram abertos. 📎✓`
       );
-    } else {
-      showSuccess(
-        `PDF baixado! (Cliente sem e-mail cadastrado para envio automático).`
-      );
+    } else if (enviarEmail) {
+      if (clienteEmail) {
+        showSuccess(
+          `PDF baixado — anexe o arquivo ao e-mail que foi aberto antes de enviar. 📧✓`
+        );
+      } else {
+        showSuccess(
+          `PDF baixado! (Cliente sem e-mail cadastrado para envio automático).`
+        );
+      }
+    } else if (enviarWhatsapp) {
+      if (clientePhone) {
+        showSuccess(
+          `PDF baixado — anexe o arquivo na conversa do WhatsApp que foi aberta antes de enviar. 📱✓`
+        );
+      } else {
+        showSuccess(
+          `PDF baixado! (Cliente sem telefone cadastrado para envio por WhatsApp).`
+        );
+      }
     }
-  } else if (enviarWhatsapp) {
-    if (clientePhone) {
-      showSuccess(
-        `PDF baixado — anexe o arquivo na conversa do WhatsApp que foi aberta antes de enviar. 📱✓`
-      );
-    } else {
-      showSuccess(
-        `PDF baixado! (Cliente sem telefone cadastrado para envio por WhatsApp).`
-      );
+  } catch (err) {
+    if (waWindow && !waWindow.closed) {
+      waWindow.close();
     }
+    showError(err.message || 'Falha ao processar envio do documento.');
   }
 };

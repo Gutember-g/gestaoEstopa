@@ -358,10 +358,15 @@ export default function Vendas() {
 
     try {
       const v = selectedVendaForHistorico;
+      const foundClient = clientesCadastrados.find(
+        (c) => String(c.id) === String(v.clienteId) || String(c.nome).toLowerCase() === String(v.clienteNome || '').toLowerCase()
+      );
+
       const clienteObj = {
-        nome: v.clienteNome,
-        email: v.clienteEmail || v.email,
-        telefone: v.clienteTelefone || v.telefone,
+        id: v.clienteId || foundClient?.id,
+        nome: foundClient?.nome || v.clienteNome || 'Cliente',
+        email: foundClient?.email || v.clienteEmail || v.email || '',
+        telefone: foundClient?.telefone || v.clienteTelefone || v.telefone || '',
       };
 
       await dispatchSaleDocument({
