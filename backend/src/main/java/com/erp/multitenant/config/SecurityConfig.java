@@ -74,7 +74,9 @@ public class SecurityConfig {
                     "/produtos/**",
                     "/vendas/**",
                     "/financeiro/**",
+                    "/busca-global",
                     "/busca-global/**",
+                    "/api/busca-global",
                     "/api/busca-global/**"
                 ).permitAll()
                 .anyRequest().authenticated()
