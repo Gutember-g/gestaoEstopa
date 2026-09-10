@@ -54,4 +54,7 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
     List<Venda> findByMesEAno(@Param("tenantId") String tenantId, @Param("mes") Integer mes, @Param("ano") Integer ano);
 
     List<Venda> findByTenantIdOrderByDataVendaDesc(String tenantId, Pageable pageable);
+
+    @Query("SELECT v FROM Venda v LEFT JOIN v.cliente c WHERE (v.tenantId = :tenantId OR :tenantId IS NULL) AND (LOWER(c.nome) LIKE LOWER(CONCAT('%', :q, '%')) OR CAST(v.id AS string) LIKE CONCAT('%', :q, '%')) ORDER BY v.dataVenda DESC")
+    List<Venda> searchByTerm(@Param("tenantId") String tenantId, @Param("q") String q, Pageable pageable);
 }
