@@ -4,6 +4,7 @@ C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multi
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\repository\VendaEnvioHistoricoRepository.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\controller\NotificacaoController.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\HistoricoMesDTO.java
+C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\controller\BuscaGlobalController.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\repository\ItemVendaRepository.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\ItemVendaDTO.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\controller\ProdutoController.java
@@ -45,6 +46,7 @@ C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multi
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\LoginRequestDTO.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\config\TenantContext.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\controller\FinanceiroController.java
+C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\BuscaGlobalDTO.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\VendaEnvioRequestDTO.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\VendaEnvioHistoricoDTO.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\model\Produto.java

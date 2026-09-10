@@ -44,12 +44,12 @@ public class BuscaGlobalController {
             tenantId = "empresa_demo";
         }
 
-        String termo = q.trim();
+        String termoPattern = "%" + q.trim().toLowerCase() + "%";
         PageRequest limit = PageRequest.of(0, 5);
 
-        List<Cliente> clientes = clienteRepository.searchByTerm(tenantId, termo, limit);
-        List<Produto> produtos = produtoRepository.searchByTerm(tenantId, termo, limit);
-        List<Venda> vendasEntities = vendaRepository.searchByTerm(tenantId, termo, limit);
+        List<Cliente> clientes = clienteRepository.searchByTerm(tenantId, termoPattern, limit);
+        List<Produto> produtos = produtoRepository.searchByTerm(tenantId, termoPattern, limit);
+        List<Venda> vendasEntities = vendaRepository.searchByTerm(tenantId, termoPattern, limit);
         List<VendaDTO> vendas = vendasEntities.stream().map(VendaDTO::fromEntity).toList();
 
         return ResponseEntity.ok(new BuscaGlobalDTO(clientes, produtos, vendas));

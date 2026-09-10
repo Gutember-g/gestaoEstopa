@@ -18,6 +18,6 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     Optional<Produto> findByIdAndTenantId(Long id, String tenantId);
     long countByTenantIdAndStatusAndUltimaMovimentacaoBefore(String tenantId, StatusProduto status, LocalDateTime data);
 
-    @Query("SELECT p FROM Produto p WHERE (p.tenantId = :tenantId OR :tenantId IS NULL) AND (LOWER(p.nome) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :q, '%')))")
-    List<Produto> searchByTerm(@Param("tenantId") String tenantId, @Param("q") String q, Pageable pageable);
+    @Query("SELECT p FROM Produto p WHERE (p.tenantId = :tenantId OR :tenantId IS NULL) AND LOWER(p.nome) LIKE :term")
+    List<Produto> searchByTerm(@Param("tenantId") String tenantId, @Param("term") String term, Pageable pageable);
 }

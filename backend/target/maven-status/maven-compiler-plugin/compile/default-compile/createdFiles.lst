@@ -40,10 +40,12 @@ com\erp\multitenant\service\VendaEnvioService.class
 com\erp\multitenant\dto\PerfilDTO.class
 com\erp\multitenant\controller\HealthController.class
 com\erp\multitenant\controller\NotificacaoController.class
+com\erp\multitenant\dto\BuscaGlobalDTO.class
 com\erp\multitenant\dto\VendaDTO.class
 com\erp\multitenant\model\ConfiguracaoEnvio.class
 com\erp\multitenant\dto\TopClienteDTO.class
 com\erp\multitenant\model\Parcela.class
+com\erp\multitenant\controller\BuscaGlobalController.class
 com\erp\multitenant\dto\DashboardDTO.class
 com\erp\multitenant\dto\EvolucaoVendaDTO.class
 com\erp\multitenant\dto\ItemVendaDTO.class
