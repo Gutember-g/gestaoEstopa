@@ -188,6 +188,31 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
     if (!validateForm()) return;
     setIsSubmitting(true);
 
+    // CRITICAL FOR POPUP BLOCKER BYPASS:
+    // Open placeholder popup synchronously on click, BEFORE any async await calls
+    let waWindow = null;
+    if (enviarWhatsapp) {
+      try {
+        waWindow = window.open('about:blank', '_blank');
+        if (waWindow && waWindow.document) {
+          waWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head><title>Processando WhatsApp...</title></head>
+              <body style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #334155;">
+                <div style="text-align: center; padding: 20px;">
+                  <h3 style="margin-bottom: 8px;">🔄 Salvando pedido e preparando WhatsApp...</h3>
+                  <p style="color: #64748b; font-size: 14px;">Aguarde alguns segundos, você será redirecionado para a conversa em breve.</p>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+      } catch {
+        waWindow = null;
+      }
+    }
+
     try {
       const payload = {
         clienteId: parseInt(clienteId, 10),
@@ -225,6 +250,7 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
           formatoDocumento,
           showSuccess,
           showError,
+          preOpenedWindow: waWindow,
         });
       }
 
@@ -234,6 +260,9 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
 
       onClose();
     } catch (err) {
+      if (waWindow && !waWindow.closed) {
+        waWindow.close();
+      }
       showError(err.response?.data?.message || 'Falha ao gravar registro no banco de dados.');
     } finally {
       setIsSubmitting(false);

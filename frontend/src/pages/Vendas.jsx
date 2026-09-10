@@ -356,6 +356,29 @@ export default function Vendas() {
     if (!selectedVendaForHistorico) return;
     setIsResending(true);
 
+    let waWindow = null;
+    if (canal === 'WHATSAPP') {
+      try {
+        waWindow = window.open('about:blank', '_blank');
+        if (waWindow && waWindow.document) {
+          waWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head><title>Processando WhatsApp...</title></head>
+              <body style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #334155;">
+                <div style="text-align: center; padding: 20px;">
+                  <h3 style="margin-bottom: 8px;">🔄 Reenviando documento para o WhatsApp...</h3>
+                  <p style="color: #64748b; font-size: 14px;">Aguarde alguns segundos, você será redirecionado para a conversa em breve.</p>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+      } catch {
+        waWindow = null;
+      }
+    }
+
     try {
       const v = selectedVendaForHistorico;
       const foundClient = clientesCadastrados.find(
@@ -381,10 +404,14 @@ export default function Vendas() {
         formatoDocumento: 'pdf',
         showSuccess,
         showError,
+        preOpenedWindow: waWindow,
       });
 
       handleOpenHistoricoModal(v);
     } catch {
+      if (waWindow && !waWindow.closed) {
+        waWindow.close();
+      }
       showError('Erro ao reenviar documento.');
     } finally {
       setIsResending(false);

@@ -74,13 +74,28 @@ export const dispatchSaleDocument = async ({
   formatoDocumento = 'pdf',
   showSuccess = console.log,
   showError = console.error,
+  preOpenedWindow = null,
 }) => {
   // CRITICAL FOR POPUP BLOCKER BYPASS:
-  // If sending via WhatsApp, synchronously open a placeholder window during user click handling before any async await calls!
-  let waWindow = null;
-  if (enviarWhatsapp) {
+  // If a preOpenedWindow was opened synchronously on user click, use it! Otherwise try opening placeholder window.
+  let waWindow = preOpenedWindow;
+  if (enviarWhatsapp && (!waWindow || waWindow.closed)) {
     try {
       waWindow = window.open('about:blank', '_blank');
+      if (waWindow && waWindow.document) {
+        waWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>Processando WhatsApp...</title></head>
+            <body style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #334155;">
+              <div style="text-align: center; padding: 20px;">
+                <h3 style="margin-bottom: 8px;">🔄 Processando envio para WhatsApp...</h3>
+                <p style="color: #64748b; font-size: 14px;">O documento PDF está sendo gerado. Você será redirecionado em instantes.</p>
+              </div>
+            </body>
+          </html>
+        `);
+      }
     } catch {
       waWindow = null;
     }
@@ -208,12 +223,25 @@ ${itensSummary || '- Itens conforme discriminado no PDF'}
 📄 O documento em PDF acabou de ser baixado no seu dispositivo e será enviado em seguida nesta conversa. Por favor, confirme o recebimento!`;
 
         const encodedText = encodeURIComponent(waText);
-        const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
+        // Correct WhatsApp URL format: https://wa.me/[numero]?text=[mensagem]
+        const waUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
+
+        console.log('[WhatsApp Dispatch Diagnostic]', {
+          isMobile: isMobileDevice(),
+          originalPhone: clientePhone,
+          cleanPhone,
+          waUrl,
+          hasWindow: !!waWindow && !waWindow.closed,
+        });
 
         if (waWindow && !waWindow.closed) {
           waWindow.location.href = waUrl;
         } else {
-          window.open(waUrl, '_blank', 'noopener,noreferrer');
+          const fallbackWin = window.open(waUrl, '_blank', 'noopener,noreferrer');
+          if (!fallbackWin) {
+            // Popup blocker prevented opening new tab, redirect current location as ultimate fallback
+            window.location.href = waUrl;
+          }
         }
       } else {
         if (waWindow && !waWindow.closed) {
