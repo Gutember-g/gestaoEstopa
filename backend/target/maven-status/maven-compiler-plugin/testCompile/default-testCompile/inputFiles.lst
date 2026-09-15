@@ -3,3 +3,4 @@ C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\test\java\com\erp\multi
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\test\java\com\erp\multitenant\security\SecurityExceptionHandlingTest.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\test\java\com\erp\multitenant\security\TokenRotationAndReuseTest.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\test\java\com\erp\multitenant\security\JwtProviderTest.java
+C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\test\java\com\erp\multitenant\security\AuthSenhaTest.java

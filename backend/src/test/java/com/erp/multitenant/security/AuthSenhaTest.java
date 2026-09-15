@@ -1,0 +1,126 @@
+package com.erp.multitenant.security;
+
+import com.erp.multitenant.model.Usuario;
+import com.erp.multitenant.repository.UsuarioRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("dev")
+class AuthSenhaTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        // Assegurar que o usuário admin existe com a senha 'admin123'
+        Usuario usuario = usuarioRepository.findByUsername("admin")
+                .orElseGet(() -> new Usuario("admin", "", "admin@gestaoestopa.com", "Admin Teste", "Admin", "empresa_demo"));
+
+        usuario.setSenhaHash(passwordEncoder.encode("admin123"));
+        usuarioRepository.save(usuario);
+    }
+
+    @Test
+    @DisplayName("FLUXO COMPLETO: Login com senha antiga funciona, altera senha, senha antiga falha e nova funciona")
+    void testFluxoTrocaDeSenhaEAutenticacao() throws Exception {
+        // 1. Tentar logar com a senha inicial (admin123) -> DEVE FUNCIONAR
+        MvcResult loginInicialResult = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "username": "admin",
+                                    "password": "admin123",
+                                    "tenantId": "empresa_demo"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").exists())
+                .andReturn();
+
+        String responseBody = loginInicialResult.getResponse().getContentAsString();
+        JsonNode jsonNode = objectMapper.readTree(responseBody);
+        String accessToken = jsonNode.get("accessToken").asText();
+
+        // 2. Trocar a senha do usuário via /perfil/senha
+        mockMvc.perform(put("/perfil/senha")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "senhaAtual": "admin123",
+                                    "novaSenha": "novaSenhaSegura456"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        // 3. Tentar logar com a SENHA ANTIGA (admin123) -> DEVE FALHAR (401 Unauthorized)
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "username": "admin",
+                                    "password": "admin123",
+                                    "tenantId": "empresa_demo"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value("Credenciais inválidas. Usuário ou senha incorretos."));
+
+        // 4. Tentar logar com a SENHA NOVA (novaSenhaSegura456) -> DEVE FUNCIONAR (200 OK)
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "username": "admin",
+                                    "password": "novaSenhaSegura456",
+                                    "tenantId": "empresa_demo"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").exists());
+    }
+
+    @Test
+    @DisplayName("SEGURANCA: Troca de senha com senha atual errada deve ser rejeitada com 400 Bad Request")
+    void testTrocaDeSenhaComSenhaAtualIncorreta() throws Exception {
+        mockMvc.perform(put("/perfil/senha")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "senhaAtual": "senhaErrada123",
+                                    "novaSenha": "tentativaNovaSenha"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+}

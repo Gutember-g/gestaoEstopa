@@ -54,9 +54,11 @@ C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multi
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\security\TenantFilter.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\service\EmailSenderService.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\ConfiguracaoEnvioDTO.java
+C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\repository\UsuarioRepository.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\repository\ParcelaRepository.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\EvolucaoVendaDTO.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\service\DocumentoGeneratorService.java
+C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\model\Usuario.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\service\VendaEnvioService.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\controller\VendaController.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\service\DashboardService.java
