@@ -28,59 +28,8 @@ export default function NotificationDropdown() {
 
   const [prefs, setPrefs] = useState(getPrefs);
 
-  // Initial notifications list
-  const [rawNotifications, setRawNotifications] = useState([
-    {
-      id: 1,
-      tipo: 'cobranca',
-      icon: '🔴',
-      titulo: 'Cobrança Vencida',
-      descricao: 'Parcela de R$ 1.250,00 da empresa Silva & Cia venceu ontem.',
-      timestamp: 'há 10 min',
-      lida: false,
-      link: '/financeiro',
-    },
-    {
-      id: 2,
-      tipo: 'meta',
-      icon: '🎯',
-      titulo: 'Meta de Faturamento Atingida!',
-      descricao: 'Parabéns! A meta mensal de R$ 250.000,00 foi ultrapassada.',
-      timestamp: 'há 2 horas',
-      lida: false,
-      link: '/dashboard',
-    },
-    {
-      id: 3,
-      tipo: 'estoque',
-      icon: '📦',
-      titulo: 'Estoque Baixo',
-      descricao: 'Estopa Branca Premium 1kg atingiu o nível crítico (3 un).',
-      timestamp: 'há 4 horas',
-      lida: false,
-      link: '/produtos',
-    },
-    {
-      id: 4,
-      tipo: 'cliente',
-      icon: '👥',
-      titulo: 'Novo Cliente Cadastrado',
-      descricao: 'Mecânica Express Eireli foi cadastrado no sistema.',
-      timestamp: 'ontem',
-      lida: true,
-      link: '/clientes',
-    },
-    {
-      id: 5,
-      tipo: 'venda',
-      icon: '🛒',
-      titulo: 'Venda Pendente de Confirmação',
-      descricao: 'Venda #103 no valor de R$ 3.400,00 aguarda aprovação.',
-      timestamp: 'ontem',
-      lida: true,
-      link: '/vendas',
-    },
-  ]);
+  // Real notifications list initialized as empty
+  const [rawNotifications, setRawNotifications] = useState([]);
 
   // Listen for preference updates
   useEffect(() => {
@@ -91,19 +40,21 @@ export default function NotificationDropdown() {
     return () => window.removeEventListener('notif-prefs-updated', handleNotifPrefsUpdate);
   }, []);
 
-  // Fetch from API if backend is available
+  // Fetch real notifications from API
   useEffect(() => {
     async function fetchNotificacoes() {
       try {
         const res = await api.get('/notificacoes');
-        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.data && Array.isArray(res.data)) {
           setRawNotifications(res.data);
         }
       } catch {
-        // Keeps mock notifications when API is not available
+        setRawNotifications([]);
       }
     }
     fetchNotificacoes();
+    const interval = setInterval(fetchNotificacoes, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   // Close dropdown on click outside
@@ -207,7 +158,7 @@ export default function NotificationDropdown() {
           <div className="max-h-80 overflow-y-auto divide-y divide-slate-800/60">
             {notifications.length === 0 ? (
               <div className="p-6 text-center text-slate-400 text-xs">
-                Nenhuma notificação relevante no momento.
+                Nenhuma notificação no momento.
               </div>
             ) : (
               notifications.map((item) => (

@@ -4,6 +4,7 @@ import com.erp.multitenant.config.TenantContext;
 import com.erp.multitenant.model.Cliente;
 import com.erp.multitenant.repository.ClienteRepository;
 import com.erp.multitenant.service.ClienteExportService;
+import com.erp.multitenant.service.NotificacaoService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,10 +22,16 @@ public class ClienteController {
 
     private final ClienteExportService clienteExportService;
     private final ClienteRepository clienteRepository;
+    private final NotificacaoService notificacaoService;
 
-    public ClienteController(ClienteExportService clienteExportService, ClienteRepository clienteRepository) {
+    public ClienteController(
+            ClienteExportService clienteExportService,
+            ClienteRepository clienteRepository,
+            NotificacaoService notificacaoService
+    ) {
         this.clienteExportService = clienteExportService;
         this.clienteRepository = clienteRepository;
+        this.notificacaoService = notificacaoService;
     }
 
     @GetMapping
@@ -51,6 +58,17 @@ public class ClienteController {
             cliente.setCriadoEm(java.time.LocalDateTime.now());
         }
         Cliente saved = clienteRepository.save(cliente);
+
+        notificacaoService.criarNotificacao(
+                tenantId,
+                "cliente",
+                "👥",
+                "Novo Cliente Cadastrado",
+                "O cliente " + saved.getNome() + " foi cadastrado no sistema com sucesso.",
+                saved.getId(),
+                "/clientes"
+        );
+
         return ResponseEntity.ok(saved);
     }
 

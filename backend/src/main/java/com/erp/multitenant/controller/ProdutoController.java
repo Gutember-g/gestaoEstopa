@@ -4,6 +4,7 @@ import com.erp.multitenant.config.TenantContext;
 import com.erp.multitenant.model.Produto;
 import com.erp.multitenant.model.StatusProduto;
 import com.erp.multitenant.repository.ProdutoRepository;
+import com.erp.multitenant.service.NotificacaoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,9 +18,11 @@ import java.util.Map;
 public class ProdutoController {
 
     private final ProdutoRepository produtoRepository;
+    private final NotificacaoService notificacaoService;
 
-    public ProdutoController(ProdutoRepository produtoRepository) {
+    public ProdutoController(ProdutoRepository produtoRepository, NotificacaoService notificacaoService) {
         this.produtoRepository = produtoRepository;
+        this.notificacaoService = notificacaoService;
     }
 
     @GetMapping
@@ -54,6 +57,17 @@ public class ProdutoController {
         }
         produto.setUltimaMovimentacao(LocalDateTime.now());
         Produto saved = produtoRepository.save(produto);
+
+        notificacaoService.criarNotificacao(
+                tenantId,
+                "estoque",
+                "📦",
+                "Novo Produto no Estoque",
+                "O produto " + saved.getNome() + " foi cadastrado no catálogo do ERP.",
+                saved.getId(),
+                "/produtos"
+        );
+
         return ResponseEntity.ok(saved);
     }
 
@@ -80,6 +94,19 @@ public class ProdutoController {
         }
         produto.setUltimaMovimentacao(LocalDateTime.now());
         Produto saved = produtoRepository.save(produto);
+
+        if (saved.getStatus() == StatusProduto.INATIVO) {
+            notificacaoService.criarNotificacao(
+                    tenantId,
+                    "estoque",
+                    "📦",
+                    "Estoque Baixo / Produto Inativo",
+                    "O produto " + saved.getNome() + " foi alterado para o status Inativo.",
+                    saved.getId(),
+                    "/produtos"
+            );
+        }
+
         return ResponseEntity.ok(saved);
     }
 
