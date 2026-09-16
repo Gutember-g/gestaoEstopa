@@ -40,7 +40,7 @@ export default function Perfil() {
           });
         }
       } catch {
-        // Keeps local values if API is unavailable
+        // Mantiene os dados do localStorage se a API falhar
       }
     }
     loadPerfil();
@@ -55,15 +55,14 @@ export default function Perfil() {
     e.preventDefault();
     setLoading(true);
     try {
-      localStorage.setItem('flow_user_profile', JSON.stringify(perfil));
-      window.dispatchEvent(new Event('user-profile-updated'));
-
-      await api.put('/perfil', perfil);
-      showSuccess('Perfil atualizado com sucesso no sistema! ✓');
-    } catch {
-      localStorage.setItem('flow_user_profile', JSON.stringify(perfil));
+      const res = await api.put('/perfil', perfil);
+      const updated = res.data ? { ...perfil, ...res.data } : perfil;
+      setPerfil(updated);
+      localStorage.setItem('flow_user_profile', JSON.stringify(updated));
       window.dispatchEvent(new Event('user-profile-updated'));
       showSuccess('Perfil atualizado com sucesso no sistema! ✓');
+    } catch (err) {
+      showError(err.response?.data?.message || 'Falha ao atualizar o perfil no sistema.');
     } finally {
       setLoading(false);
     }
@@ -154,7 +153,7 @@ export default function Perfil() {
                   type="text"
                   name="nome"
                   required
-                  value={perfil.nome}
+                  value={perfil.nome || ''}
                   onChange={handleChange}
                   className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 font-medium transition-all"
                 />
@@ -168,7 +167,7 @@ export default function Perfil() {
                   type="email"
                   name="email"
                   required
-                  value={perfil.email}
+                  value={perfil.email || ''}
                   onChange={handleChange}
                   className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 font-medium transition-all"
                 />
@@ -181,7 +180,7 @@ export default function Perfil() {
                 <input
                   type="text"
                   name="cargo"
-                  value={perfil.cargo}
+                  value={perfil.cargo || ''}
                   onChange={handleChange}
                   placeholder="Ex: Gerente Comercial, Administrador..."
                   className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 font-medium transition-all"
@@ -195,7 +194,7 @@ export default function Perfil() {
                 <input
                   type="url"
                   name="avatar"
-                  value={perfil.avatar}
+                  value={perfil.avatar || ''}
                   onChange={handleChange}
                   placeholder="https://exemplo.com/minha-foto.jpg"
                   className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 font-medium transition-all"

@@ -166,9 +166,8 @@ export default function Configuracoes() {
       await api.put('/perfil/senha', passwords);
       showSuccess('Senha alterada no sistema com sucesso! ✓');
       setPasswords({ senhaAtual: '', novaSenha: '', confirmacaoSenha: '' });
-    } catch {
-      showSuccess('Senha alterada no sistema com sucesso! ✓');
-      setPasswords({ senhaAtual: '', novaSenha: '', confirmacaoSenha: '' });
+    } catch (err) {
+      showError(err.response?.data?.message || 'Falha ao alterar senha. Verifique a senha atual informada.');
     } finally {
       setLoading(false);
     }

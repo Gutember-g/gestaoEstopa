@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -42,8 +43,11 @@ class AuthSenhaTest {
     @BeforeEach
     void setUp() {
         Usuario usuario = usuarioRepository.findByUsername("admin")
-                .orElseGet(() -> new Usuario("admin", "", "admin@gestaoestopa.com", "Admin Teste", "Admin", "empresa_demo"));
+                .orElseGet(() -> new Usuario("admin", "", "admin@gestaoestopa.com", "Gabriel Andrade", "Administrador", "empresa_demo"));
 
+        usuario.setNome("Gabriel Andrade");
+        usuario.setEmail("gabriel@flowerp.com.br");
+        usuario.setCargo("Administrador");
         usuario.setSenhaHash(passwordEncoder.encode("admin123"));
         usuarioRepository.save(usuario);
     }
@@ -107,6 +111,32 @@ class AuthSenhaTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").exists());
+    }
+
+    @Test
+    @DisplayName("PERSISTENCIA: Alterar dados de perfil via PUT /perfil deve persistir no banco e retornar em GET /perfil")
+    void testPersistenciaDePerfil() throws Exception {
+        // 1. Alterar o perfil do usuário
+        mockMvc.perform(put("/perfil")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "nome": "Gabriel Andrade Editado",
+                                    "email": "gabriel.editado@flowerp.com.br",
+                                    "cargo": "Diretor Comercial"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Gabriel Andrade Editado"))
+                .andExpect(jsonPath("$.email").value("gabriel.editado@flowerp.com.br"))
+                .andExpect(jsonPath("$.cargo").value("Diretor Comercial"));
+
+        // 2. Fazer GET /perfil e confirmar que os dados persistidos continuam iguais (não resetam)
+        mockMvc.perform(get("/perfil"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Gabriel Andrade Editado"))
+                .andExpect(jsonPath("$.email").value("gabriel.editado@flowerp.com.br"))
+                .andExpect(jsonPath("$.cargo").value("Diretor Comercial"));
     }
 
     @Test

@@ -22,7 +22,7 @@ public class PerfilController {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
 
-    private PerfilDTO currentPerfil = new PerfilDTO(
+    private final PerfilDTO defaultPerfil = new PerfilDTO(
             "Gabriel Andrade",
             "gabriel@flowerp.com.br",
             "Administrador",
@@ -39,21 +39,6 @@ public class PerfilController {
 
     @GetMapping
     public ResponseEntity<PerfilDTO> getPerfil() {
-        return ResponseEntity.ok(currentPerfil);
-    }
-
-    @PutMapping
-    public ResponseEntity<PerfilDTO> updatePerfil(@RequestBody PerfilDTO dto) {
-        this.currentPerfil = new PerfilDTO(
-                dto.nome() != null ? dto.nome() : currentPerfil.nome(),
-                dto.email() != null ? dto.email() : currentPerfil.email(),
-                dto.cargo() != null ? dto.cargo() : currentPerfil.cargo(),
-                dto.avatar() != null ? dto.avatar() : currentPerfil.avatar(),
-                currentPerfil.dataCriacao(),
-                currentPerfil.ultimoAcesso(),
-                currentPerfil.tenant()
-        );
-
         String username = resolveCurrentUsername();
         String tenantId = resolveCurrentTenant();
 
@@ -62,14 +47,55 @@ public class PerfilController {
             usuarioOpt = usuarioRepository.findByUsername(username);
         }
 
-        usuarioOpt.ifPresent(u -> {
-            if (dto.nome() != null) u.setNome(dto.nome());
-            if (dto.email() != null) u.setEmail(dto.email());
-            if (dto.cargo() != null) u.setCargo(dto.cargo());
-            usuarioRepository.save(u);
-        });
+        if (usuarioOpt.isPresent()) {
+            Usuario u = usuarioOpt.get();
+            PerfilDTO dto = new PerfilDTO(
+                    u.getNome() != null ? u.getNome() : defaultPerfil.nome(),
+                    u.getEmail() != null ? u.getEmail() : defaultPerfil.email(),
+                    u.getCargo() != null ? u.getCargo() : defaultPerfil.cargo(),
+                    "",
+                    "15/01/2024",
+                    "Hoje às 19:05",
+                    u.getTenantId() != null ? u.getTenantId() : tenantId
+            );
+            return ResponseEntity.ok(dto);
+        }
 
-        return ResponseEntity.ok(this.currentPerfil);
+        return ResponseEntity.ok(defaultPerfil);
+    }
+
+    @PutMapping
+    public ResponseEntity<PerfilDTO> updatePerfil(@RequestBody PerfilDTO dto) {
+        String username = resolveCurrentUsername();
+        String tenantId = resolveCurrentTenant();
+
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByUsernameAndTenantId(username, tenantId);
+        if (usuarioOpt.isEmpty()) {
+            usuarioOpt = usuarioRepository.findByUsername(username);
+        }
+
+        if (usuarioOpt.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado.");
+        }
+
+        Usuario u = usuarioOpt.get();
+        if (dto.nome() != null) u.setNome(dto.nome());
+        if (dto.email() != null) u.setEmail(dto.email());
+        if (dto.cargo() != null) u.setCargo(dto.cargo());
+
+        Usuario saved = usuarioRepository.save(u);
+
+        PerfilDTO updatedDto = new PerfilDTO(
+                saved.getNome(),
+                saved.getEmail(),
+                saved.getCargo(),
+                dto.avatar() != null ? dto.avatar() : "",
+                "15/01/2024",
+                "Hoje às 19:05",
+                saved.getTenantId()
+        );
+
+        return ResponseEntity.ok(updatedDto);
     }
 
     @PutMapping("/senha")
