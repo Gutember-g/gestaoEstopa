@@ -9,6 +9,7 @@ com\erp\multitenant\repository\VendaEnvioHistoricoRepository.class
 com\erp\multitenant\dto\VendaEnvioRequestDTO.class
 com\erp\multitenant\controller\ConfiguracaoEnvioController.class
 com\erp\multitenant\security\CustomAuthenticationEntryPoint.class
+com\erp\multitenant\config\DataInitializer.class
 com\erp\multitenant\model\Venda.class
 com\erp\multitenant\service\ConfiguracaoEnvioService.class
 com\erp\multitenant\model\StatusParcela.class
@@ -38,12 +39,16 @@ com\erp\multitenant\dto\AlterarSenhaDTO.class
 com\erp\multitenant\repository\ParcelaRepository.class
 com\erp\multitenant\service\VendaEnvioService.class
 com\erp\multitenant\dto\PerfilDTO.class
+com\erp\multitenant\repository\UsuarioRepository.class
 com\erp\multitenant\controller\HealthController.class
 com\erp\multitenant\controller\NotificacaoController.class
+com\erp\multitenant\dto\BuscaGlobalDTO.class
 com\erp\multitenant\dto\VendaDTO.class
 com\erp\multitenant\model\ConfiguracaoEnvio.class
+com\erp\multitenant\model\Usuario.class
 com\erp\multitenant\dto\TopClienteDTO.class
 com\erp\multitenant\model\Parcela.class
+com\erp\multitenant\controller\BuscaGlobalController.class
 com\erp\multitenant\dto\DashboardDTO.class
 com\erp\multitenant\dto\EvolucaoVendaDTO.class
 com\erp\multitenant\dto\ItemVendaDTO.class

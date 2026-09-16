@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import MonthFilter from '../components/MonthFilter';
 import ActionButton from '../components/ActionButton';
 import { useVendaModal } from '../context/VendaModalContext';
+import { dispatchSaleDocument } from '../utils/dispatchHelper';
 
 export default function Vendas() {
   const { showSuccess, showError } = useToast();
@@ -28,6 +29,7 @@ export default function Vendas() {
   const [showModal, setShowModal] = useState(false);
   const [editingVendaId, setEditingVendaId] = useState(null);
   const [deleteConfirmVenda, setDeleteConfirmVenda] = useState(null);
+  const [selectedVendaDetails, setSelectedVendaDetails] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -354,16 +356,63 @@ export default function Vendas() {
     if (!selectedVendaForHistorico) return;
     setIsResending(true);
 
+    let waWindow = null;
+    if (canal === 'WHATSAPP') {
+      try {
+        waWindow = window.open('about:blank', '_blank');
+        if (waWindow && waWindow.document) {
+          waWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head><title>Processando WhatsApp...</title></head>
+              <body style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #334155;">
+                <div style="text-align: center; padding: 20px;">
+                  <h3 style="margin-bottom: 8px;">🔄 Reenviando documento para o WhatsApp...</h3>
+                  <p style="color: #64748b; font-size: 14px;">Aguarde alguns segundos, você será redirecionado para a conversa em breve.</p>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+      } catch {
+        waWindow = null;
+      }
+    }
+
     try {
-      await api.post(`/vendas/${selectedVendaForHistorico.id}/emissao-envio`, {
+      const v = selectedVendaForHistorico;
+      const foundClient = clientesCadastrados.find(
+        (c) => String(c.id) === String(v.clienteId) || String(c.nome).toLowerCase() === String(v.clienteNome || '').toLowerCase()
+      );
+
+      const clienteObj = {
+        id: v.clienteId || foundClient?.id,
+        nome: foundClient?.nome || v.clienteNome || 'Cliente',
+        email: foundClient?.email || v.clienteEmail || v.email || '',
+        telefone: foundClient?.telefone || v.clienteTelefone || v.telefone || '',
+      };
+
+      await dispatchSaleDocument({
+        vendaId: v.id,
+        status: v.status,
+        cliente: clienteObj,
+        itens: v.itens || [],
+        valorTotal: v.valorTotal || 0,
+        prazoDias: v.prazoFaturamentoDias || 0,
         enviarEmail: canal === 'EMAIL',
         enviarWhatsapp: canal === 'WHATSAPP',
         formatoDocumento: 'pdf',
+        showSuccess,
+        showError,
+        preOpenedWindow: waWindow,
       });
-      showSuccess(`Reenvio manual por ${canal === 'EMAIL' ? 'E-mail' : 'WhatsApp'} efetuado com sucesso! ✓`);
-      handleOpenHistoricoModal(selectedVendaForHistorico);
+
+      handleOpenHistoricoModal(v);
     } catch {
-      showSuccess(`Reenvio manual por ${canal === 'EMAIL' ? 'E-mail' : 'WhatsApp'} concluído! ✓`);
+      if (waWindow && !waWindow.closed) {
+        waWindow.close();
+      }
+      showError('Erro ao reenviar documento.');
     } finally {
       setIsResending(false);
     }
@@ -624,21 +673,23 @@ export default function Vendas() {
                 <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-semibold text-slate-500 tracking-wider">
                   <tr>
                     <th className="p-4">ID Venda</th>
-                    <th className="p-4">Status / Tipo</th>
                     <th className="p-4">Cliente</th>
-                    <th className="p-4">Data Venda</th>
-                    <th className="p-4">Custo Total</th>
+                    <th className="p-4">Status / Tipo</th>
                     <th className="p-4">Valor Total</th>
-                    <th className="p-4">Desconto</th>
-                    <th className="p-4">Lucro Líquido</th>
                     <th className="p-4">Prazo & Vencimento</th>
-                    <th className="p-4 text-right">Ações</th>
+                    <th className="p-4 pr-6 text-right w-24">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {vendas.map((v) => (
-                    <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-4 font-mono font-bold text-slate-900">#{v.id}</td>
+                    <tr
+                      key={v.id}
+                      onClick={() => setSelectedVendaDetails(v)}
+                      className="hover:bg-blue-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group h-auto"
+                      title="Clique para ver detalhes completos da venda"
+                    >
+                      <td className="p-4 font-mono font-bold text-slate-900 group-hover:text-blue-600">#{v.id}</td>
+                      <td className="p-4 font-bold text-slate-800">{v.clienteNome}</td>
                       <td className="p-4">
                         {v.status === 'ORCAMENTO' ? (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 inline-flex items-center gap-1">
@@ -650,19 +701,7 @@ export default function Vendas() {
                           </span>
                         )}
                       </td>
-                      <td className="p-4">
-                        <div className="font-semibold text-slate-800">{v.clienteNome}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{v.cpfCnpj}</div>
-                      </td>
-                      <td className="p-4 text-slate-500">{v.dataVenda}</td>
-                      <td className="p-4 font-mono text-slate-500">{formatCurrencyBRL(v.custoTotal)}</td>
-                      <td className="p-4 font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</td>
-                      <td className="p-4 font-mono text-slate-400">-{formatCurrencyBRL(v.desconto)}</td>
-                      <td className="p-4">
-                        <span className="badge-pago font-mono">
-                          +{formatCurrencyBRL(v.lucroLiquido)}
-                        </span>
-                      </td>
+                      <td className="p-4 font-extrabold text-slate-900 text-sm">{formatCurrencyBRL(v.valorTotal)}</td>
                       <td className="p-4">
                         <div className="space-y-0.5">
                           <span className="text-[11px] font-medium text-slate-700">
@@ -671,56 +710,17 @@ export default function Vendas() {
                           <div className="text-[10px] text-slate-400">Venc: {v.dataVencimento}</div>
                         </div>
                       </td>
-                      <td className="p-4 text-right space-x-1 whitespace-nowrap">
-                        {v.status === 'ORCAMENTO' && (
-                          <ActionButton
-                            label="Aprovar Orçamento"
-                            icon="✓"
-                            variant="success"
-                            size="xs"
-                            title="Aprovar Orçamento e Gerar Parcelas no Financeiro"
-                            onClick={() => handleAprovarOrcamento(v)}
-                          />
-                        )}
+                      <td className="p-4 pr-6 text-right w-24" onClick={(e) => e.stopPropagation()}>
                         <ActionButton
-                          label="Envios"
-                          icon="📩"
-                          variant="successSubtle"
+                          label="Editar"
+                          icon="✏️"
+                          variant="outline"
                           size="xs"
-                          title="Histórico de Envios"
-                          onClick={() => handleOpenHistoricoModal(v)}
-                        />
-                        <ActionButton
-                          label="PDF"
-                          icon="📄"
-                          variant="secondary"
-                          size="xs"
-                          title="Baixar PDF da Venda"
-                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
-                        />
-                        <ActionButton
-                          label="Excel"
-                          icon="📊"
-                          variant="secondary"
-                          size="xs"
-                          title="Baixar Excel (XLSX) da Venda"
-                          onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
-                        />
-                        <ActionButton
-                          label="Duplicar"
-                          icon="📋"
-                          variant="subtle"
-                          size="xs"
-                          title="Duplicar Venda"
-                          onClick={() => handleDuplicateVenda(v)}
-                        />
-                        <ActionButton
-                          label="Excluir"
-                          icon="🗑️"
-                          variant="dangerSubtle"
-                          size="xs"
-                          title="Excluir Venda"
-                          onClick={() => setDeleteConfirmVenda(v)}
+                          title="Editar Venda"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditModal(v);
+                          }}
                         />
                       </td>
                     </tr>
@@ -732,80 +732,34 @@ export default function Vendas() {
             {/* Mobile View Cards */}
             <div className="md:hidden divide-y divide-slate-100">
               {vendas.map((v) => (
-                <div key={v.id} className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
-                        {v.status === 'ORCAMENTO' ? (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            📝 Orçamento
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            ✓ Confirmada
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {v.status === 'ORCAMENTO' && (
-                        <button
-                          onClick={() => handleAprovarOrcamento(v)}
-                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[10px] font-bold shadow-xs active:scale-95 transition-all"
-                          title="Aprovar Orçamento"
-                        >
-                          ✓ Aprovar
-                        </button>
+                <div
+                  key={v.id}
+                  onClick={() => setSelectedVendaDetails(v)}
+                  className="p-4 space-y-2 cursor-pointer hover:bg-blue-50/30 transition-colors"
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-slate-400">#{v.id}</span>
+                      {v.status === 'ORCAMENTO' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          📝 Orçamento
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          ✓ Confirmada
+                        </span>
                       )}
-                      <button
-                        onClick={() => handleOpenHistoricoModal(v)}
-                        className="p-1 text-emerald-600 hover:text-emerald-700"
-                        title="Histórico de Envios"
-                      >
-                        📩
-                      </button>
-                      <button
-                        onClick={() => handleDownloadSingleVendaPdf(v.id, 'pdf')}
-                        className="p-1 text-slate-500 hover:text-blue-600"
-                        title="Baixar PDF da Venda"
-                      >
-                        📄
-                      </button>
-                      <button
-                        onClick={() => handleDownloadSingleVendaPdf(v.id, 'xlsx')}
-                        className="p-1 text-slate-500 hover:text-emerald-600"
-                        title="Baixar Excel (XLSX) da Venda"
-                      >
-                        📊
-                      </button>
-                      <button
-                        onClick={() => handleDuplicateVenda(v)}
-                        className="p-1 text-slate-500 hover:text-indigo-600"
-                        title="Duplicar venda"
-                      >
-                        📋
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmVenda(v)}
-                        className="p-1 text-slate-400 hover:text-rose-600"
-                        title="Excluir venda"
-                      >
-                        🗑️
-                      </button>
                     </div>
+                    <span className="text-xs text-blue-600 font-bold">Ver Detalhes 🔍</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">VALOR TOTAL</span>
-                      <span className="font-bold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">FATURAMENTO</span>
-                      <span className="font-semibold text-slate-700">{v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias}d (Venc: ${v.dataVencimento})`}</span>
-                    </div>
+                  <div className="flex justify-between items-baseline">
+                    <h3 className="font-bold text-sm text-slate-900">{v.clienteNome}</h3>
+                    <span className="font-extrabold text-slate-900 text-sm">{formatCurrencyBRL(v.valorTotal)}</span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-500">
+                    Prazo: {v.prazoFaturamentoDias === 0 ? 'À Vista' : `${v.prazoFaturamentoDias} dias`} | Venc: {v.dataVencimento}
                   </div>
                 </div>
               ))}
@@ -817,8 +771,8 @@ export default function Vendas() {
       {/* Modal - Histórico de Envios & Reenvio Manual */}
       {showHistoricoModal && selectedVendaForHistorico && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xl space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 text-xs">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-150 text-xs overflow-hidden">
+            <div className="flex justify-between items-center border-b border-slate-100 p-4 sm:px-6 flex-shrink-0">
               <div>
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <span>📩 Histórico de Envio da Venda #{selectedVendaForHistorico.id}</span>
@@ -833,72 +787,276 @@ export default function Vendas() {
               </button>
             </div>
 
-            {/* List of Dispatches */}
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-              {isFetchingHistorico ? (
-                <div className="p-6 text-center text-slate-400 animate-pulse">Carregando histórico de disparos...</div>
-              ) : historicoLogs.length === 0 ? (
-                <div className="p-6 text-center text-slate-400">Nenhum envio registrado para este pedido.</div>
-              ) : (
-                historicoLogs.map((log) => (
-                  <div key={log.id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex justify-between items-start gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          log.canal === 'EMAIL' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {log.canal === 'EMAIL' ? '📧 E-mail' : '💬 WhatsApp'}
-                        </span>
-                        <span className="font-mono text-slate-500 text-[10px]">[{log.formato}]</span>
-                        <span className="text-[10px] text-slate-400">{new Date(log.dataEnvio).toLocaleString('pt-BR')}</span>
-                      </div>
-                      <div className="font-semibold text-slate-800 text-xs">Destino: {log.destinatario}</div>
-                      {log.mensagemErro && (
-                        <div className="text-[10px] text-rose-600 bg-rose-50 p-1.5 rounded border border-rose-100 font-mono">
-                          {log.mensagemErro}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+              {/* List of Dispatches */}
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {isFetchingHistorico ? (
+                  <div className="p-6 text-center text-slate-400 animate-pulse">Carregando histórico de disparos...</div>
+                ) : historicoLogs.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400">Nenhum envio registrado para este pedido.</div>
+                ) : (
+                  historicoLogs.map((log) => (
+                    <div key={log.id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex justify-between items-start gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            log.canal === 'EMAIL' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {log.canal === 'EMAIL' ? '📧 E-mail' : '💬 WhatsApp'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {new Date(log.dataEnvio).toLocaleString('pt-BR')}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        log.status === 'SUCESSO' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        <div className="font-semibold text-slate-800">
+                          {log.destinatario}
+                        </div>
+                        {log.mensagemErro && (
+                          <div className="text-rose-600 text-[10px] bg-rose-50 p-1.5 rounded border border-rose-100">
+                            ⚠ {log.mensagemErro}
+                          </div>
+                        )}
+                      </div>
+
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        log.status === 'SUCESSO' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                       }`}>
-                        {log.status === 'SUCESSO' ? '✓ Enviado' : '⚠️ Erro'}
+                        {log.status}
                       </span>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
 
-            {/* Reenviar Manual Section */}
-            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
-              <span className="font-bold text-slate-800 text-xs block">⚡ Reenviar Documento Manualmente:</span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={isResending}
-                  onClick={() => handleReenviarManual('EMAIL')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
-                >
-                  <span>📧</span> Reenviar por E-mail
-                </button>
-                <button
-                  type="button"
-                  disabled={isResending}
-                  onClick={() => handleReenviarManual('WHATSAPP')}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
-                >
-                  <span>💬</span> Reenviar por WhatsApp
-                </button>
+              {/* Reenviar Ações Rápidas */}
+              <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl space-y-2">
+                <span className="font-bold text-slate-800 text-xs block">Reenviar Documento Manualmente</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleReenviarManual('EMAIL')}
+                    disabled={isResending}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    <span>📧</span> Reenviar por E-mail
+                  </button>
+
+                  <button
+                    onClick={() => handleReenviarManual('WHATSAPP')}
+                    disabled={isResending}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    <span>💬</span> Reenviar por WhatsApp
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-slate-100">
+            <div className="flex justify-end p-4 sm:px-6 border-t border-slate-100 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setShowHistoricoModal(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl active:scale-95 transition-all"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes Completos da Venda */}
+      {selectedVendaDetails && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl my-auto animate-in zoom-in-95 duration-150 border border-slate-200 dark:border-slate-800 overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 p-4 sm:px-6 flex-shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Detalhes da Venda #{selectedVendaDetails.id}</h2>
+                  {selectedVendaDetails.status === 'ORCAMENTO' ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      📝 Orçamento
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      ✓ Confirmada
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Realizada em: <strong>{selectedVendaDetails.dataVenda}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedVendaDetails(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold p-1"
+                title="Fechar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+              {/* Cliente Block */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700 space-y-1">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Dados do Cliente</span>
+                <div className="font-bold text-slate-800 dark:text-slate-100 text-sm">{selectedVendaDetails.clienteNome}</div>
+                <div className="text-slate-600 dark:text-slate-300 font-mono text-xs">CPF/CNPJ: {selectedVendaDetails.cpfCnpj || '-'}</div>
+                {selectedVendaDetails.emailCliente && (
+                  <div className="text-slate-500 text-[11px]">E-mail: {selectedVendaDetails.emailCliente}</div>
+                )}
+              </div>
+
+              {/* Financial KPI Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Subtotal</span>
+                  <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                    {formatCurrencyBRL((selectedVendaDetails.valorTotal || 0) + (selectedVendaDetails.desconto || 0))}
+                  </span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Desconto</span>
+                  <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
+                    -{formatCurrencyBRL(selectedVendaDetails.desconto || 0)}
+                  </span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Custo Total</span>
+                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                    {formatCurrencyBRL(selectedVendaDetails.custoTotal || 0)}
+                  </span>
+                </div>
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-semibold block">Lucro Líquido</span>
+                  <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                    +{formatCurrencyBRL(selectedVendaDetails.lucroLiquido || 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Total and Payment terms */}
+              <div className="bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center shadow-sm">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Valor Total Final</span>
+                  <span className="text-lg font-bold">{formatCurrencyBRL(selectedVendaDetails.valorTotal)}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Faturamento & Prazo</span>
+                  <span className="text-xs font-medium text-blue-300">
+                    {selectedVendaDetails.prazoFaturamentoDias === 0 ? 'À Vista' : `${selectedVendaDetails.prazoFaturamentoDias} dias`}
+                    <span className="block text-[10px] text-slate-400">Vencimento: {selectedVendaDetails.dataVencimento}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Line Items List */}
+              <div className="space-y-2">
+                <h3 className="font-bold text-slate-700 dark:text-slate-300">Produtos / Itens da Venda:</h3>
+                {selectedVendaDetails.itens && selectedVendaDetails.itens.length > 0 ? (
+                  <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl divide-y divide-slate-200/60 dark:divide-slate-700 overflow-hidden">
+                    {selectedVendaDetails.itens.map((it, idx) => (
+                      <div key={idx} className="p-3 flex justify-between items-center text-xs">
+                        <div>
+                          <div className="font-bold text-slate-800 dark:text-slate-200">
+                            {it.sku ? `[${it.sku}] ` : ''}{it.nomeProduto}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Qtd: {it.quantidade}x | Custo: {formatCurrencyBRL(it.custoNoMomento || 0)} | Unit: {formatCurrencyBRL(it.precoNoMomento || it.precoUnitario || 0)}
+                          </div>
+                        </div>
+                        <div className="font-bold text-slate-900 dark:text-slate-100">
+                          {formatCurrencyBRL((it.precoNoMomento || it.precoUnitario || 0) * (it.quantidade || 1))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic text-xs">Nenhum item discriminado nesta venda.</p>
+                )}
+              </div>
+
+              {/* Action Buttons Section inside modal */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 p-4 rounded-xl space-y-2">
+                <span className="font-bold text-slate-800 dark:text-slate-200 text-xs block">Ações para esta Venda:</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedVendaDetails.status === 'ORCAMENTO' && (
+                    <ActionButton
+                      label="Aprovar Orçamento"
+                      icon="✓"
+                      variant="success"
+                      size="sm"
+                      title="Aprovar Orçamento e Gerar Parcelas no Financeiro"
+                      onClick={() => {
+                        const target = selectedVendaDetails;
+                        setSelectedVendaDetails(null);
+                        handleAprovarOrcamento(target);
+                      }}
+                    />
+                  )}
+                  <ActionButton
+                    label="Histórico de Envios"
+                    icon="📩"
+                    variant="successSubtle"
+                    size="sm"
+                    title="Histórico de Envios"
+                    onClick={() => {
+                      const target = selectedVendaDetails;
+                      setSelectedVendaDetails(null);
+                      handleOpenHistoricoModal(target);
+                    }}
+                  />
+                  <ActionButton
+                    label="Baixar PDF"
+                    icon="📄"
+                    variant="secondary"
+                    size="sm"
+                    title="Baixar PDF da Venda"
+                    onClick={() => handleDownloadSingleVendaPdf(selectedVendaDetails.id, 'pdf')}
+                  />
+                  <ActionButton
+                    label="Baixar Excel (XLSX)"
+                    icon="📊"
+                    variant="secondary"
+                    size="sm"
+                    title="Baixar Excel (XLSX) da Venda"
+                    onClick={() => handleDownloadSingleVendaPdf(selectedVendaDetails.id, 'xlsx')}
+                  />
+                  <ActionButton
+                    label="Duplicar Venda"
+                    icon="📋"
+                    variant="subtle"
+                    size="sm"
+                    title="Duplicar Venda"
+                    onClick={() => {
+                      const target = selectedVendaDetails;
+                      setSelectedVendaDetails(null);
+                      handleDuplicateVenda(target);
+                    }}
+                  />
+                  <ActionButton
+                    label="Excluir Venda"
+                    icon="🗑️"
+                    variant="dangerSubtle"
+                    size="sm"
+                    title="Excluir Venda"
+                    onClick={() => {
+                      const target = selectedVendaDetails;
+                      setSelectedVendaDetails(null);
+                      setDeleteConfirmVenda(target);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end p-4 sm:px-6 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedVendaDetails(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs active:scale-95 transition-all"
               >
                 Fechar
               </button>

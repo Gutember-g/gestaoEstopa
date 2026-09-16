@@ -50,13 +50,13 @@ export default function Layout() {
           />
 
           {/* Content Area */}
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
             <Outlet context={{ activeTab }} />
           </main>
         </div>
 
         {/* Mobile Bottom Navigation Bar (h-16) */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1E1E2D] border-t border-slate-800/80 flex justify-around items-center h-16 z-50 px-1 shadow-2xl">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1E1E2D] border-t border-slate-800/80 flex justify-around items-center h-16 z-30 px-1 shadow-2xl">
           {navItems.map((item) => (
             <NavLink
               key={item.path}

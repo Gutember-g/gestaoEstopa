@@ -18,6 +18,8 @@ export default function Clientes() {
   const [deleteConfirmCliente, setDeleteConfirmCliente] = useState(null);
   const [historicoCliente, setHistoricoCliente] = useState(null);
   const [vendaDetalheModal, setVendaDetalheModal] = useState(null);
+  const [selectedClienteDetails, setSelectedClienteDetails] = useState(null);
+  const [expandedObsId, setExpandedObsId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -584,22 +586,24 @@ export default function Clientes() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto pr-2">
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
                 <tr>
-                  <th className="p-4">Status</th>
                   <th className="p-4">Nome / Razão Social</th>
-                  <th className="p-4">CPF / CNPJ</th>
-                  <th className="p-4">Inscrição Estadual</th>
+                  <th className="p-4">Status</th>
                   <th className="p-4">Contato</th>
-                  <th className="p-4">Observação</th>
-                  <th className="p-4 text-right">Ações</th>
+                  <th className="p-4 pr-6 text-right w-28">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredClientes.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/80 transition-colors group">
+                  <tr
+                    key={c.id}
+                    onClick={() => setSelectedClienteDetails(c)}
+                    className="hover:bg-blue-50/50 transition-colors group cursor-pointer h-auto"
+                  >
+                    <td className="p-4 font-bold text-slate-900">{c.nome}</td>
                     <td className="p-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                         c.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
@@ -607,50 +611,24 @@ export default function Clientes() {
                         {c.status || 'ATIVO'}
                       </span>
                     </td>
-                    <td className="p-4 font-bold text-slate-800">
-                      <button
-                        onClick={() => handleOpenHistorico(c)}
-                        className="text-left font-bold text-slate-900 hover:text-blue-600 flex items-center gap-1.5 transition-colors"
-                        title="Ver histórico de compras"
-                      >
-                        <span>{c.nome}</span>
-                        <span className="text-[10px] text-blue-500 font-normal bg-blue-50 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          📊 Histórico
-                        </span>
-                      </button>
-                    </td>
-                    <td className="p-4 font-mono">{c.cpfCnpj}</td>
-                    <td className="p-4 font-mono text-slate-500">{c.inscricaoEstadual || '-'}</td>
                     <td className="p-4">
-                      <div>{c.telefone}</div>
-                      <div className="text-[11px] text-slate-400">{c.email}</div>
+                      <div>{c.telefone || '-'}</div>
+                      <div className="text-[11px] text-slate-400">{c.email || '-'}</div>
                     </td>
-                    <td className="p-4 text-slate-500 max-w-xs truncate">{c.observacao || '-'}</td>
-                    <td className="p-4 text-right space-x-1 whitespace-nowrap">
-                      <ActionButton
-                        label="Histórico"
-                        icon="📊"
-                        variant="subtle"
-                        size="xs"
-                        title="Ver histórico de compras"
-                        onClick={() => handleOpenHistorico(c)}
-                      />
-                      <ActionButton
-                        label="Editar"
-                        icon="✏️"
-                        variant="outline"
-                        size="xs"
-                        title="Editar cliente"
-                        onClick={() => handleOpenEditModal(c)}
-                      />
-                      <ActionButton
-                        label="Excluir"
-                        icon="🗑️"
-                        variant="dangerSubtle"
-                        size="xs"
-                        title="Excluir cliente"
-                        onClick={() => setDeleteConfirmCliente(c)}
-                      />
+                    <td className="p-4 pr-6 text-right w-28">
+                      <div className="flex justify-end">
+                        <ActionButton
+                          label="Editar"
+                          icon="✏️"
+                          variant="outline"
+                          size="xs"
+                          title="Editar cliente"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditModal(c);
+                          }}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -661,15 +639,14 @@ export default function Clientes() {
           {/* Mobile Cards View */}
           <div className="md:hidden divide-y divide-slate-100">
             {filteredClientes.map((c) => (
-              <div key={c.id} className="p-4 space-y-2">
+              <div
+                key={c.id}
+                onClick={() => setSelectedClienteDetails(c)}
+                className="p-4 space-y-2 hover:bg-blue-50/30 cursor-pointer transition-colors"
+              >
                 <div className="flex justify-between items-start">
                   <div>
-                    <button
-                      onClick={() => handleOpenHistorico(c)}
-                      className="font-bold text-sm text-slate-800 text-left hover:text-blue-600"
-                    >
-                      {c.nome} 📊
-                    </button>
+                    <div className="font-bold text-sm text-slate-800">{c.nome}</div>
                     <div className="mt-0.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                         c.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
@@ -680,42 +657,152 @@ export default function Clientes() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => handleOpenHistorico(c)}
-                      className="p-1 text-slate-500 hover:text-blue-600"
-                      title="Ver histórico"
-                    >
-                      📊
-                    </button>
-                    <button
-                      onClick={() => handleOpenEditModal(c)}
-                      className="p-1 text-slate-500 hover:text-blue-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditModal(c);
+                      }}
+                      className="p-1.5 text-slate-500 hover:text-blue-600 rounded-lg hover:bg-slate-100"
+                      title="Editar cliente"
                     >
                       ✏️
                     </button>
-                    <button
-                      onClick={() => setDeleteConfirmCliente(c)}
-                      className="p-1 text-slate-400 hover:text-rose-600"
-                    >
-                      🗑️
-                    </button>
                   </div>
                 </div>
-                <div className="text-xs font-mono text-slate-600">CPF/CNPJ: {c.cpfCnpj}</div>
-                <div className="text-xs text-slate-500">I.E.: {c.inscricaoEstadual || 'Isento'}</div>
-                <div className="text-xs text-blue-600 font-medium">{c.telefone} | {c.email}</div>
-                {c.observacao && <div className="text-[11px] text-slate-400 bg-slate-50 p-2 rounded">{c.observacao}</div>}
+                <div className="text-xs text-blue-600 font-medium">{c.telefone || '-'} | {c.email || '-'}</div>
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* Modal / Drawer de Detalhes do Cliente */}
+      {selectedClienteDetails && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl my-auto animate-in zoom-in-95 duration-150 overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 p-4 sm:px-6 sm:py-4 flex-shrink-0">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  Detalhes do Cliente
+                </h2>
+                <p className="text-[11px] text-slate-500">{selectedClienteDetails.nome}</p>
+              </div>
+              <button
+                onClick={() => setSelectedClienteDetails(null)}
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-3">
+                <h3 className="font-bold text-slate-800 text-xs border-b border-slate-200/60 pb-2">Informações Cadastrais</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Nome / Razão Social</span>
+                    <span className="font-bold text-slate-800">{selectedClienteDetails.nome}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Status</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mt-0.5 ${
+                      selectedClienteDetails.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      {selectedClienteDetails.status || 'ATIVO'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">CPF / CNPJ</span>
+                    <span className="font-mono font-medium text-slate-700">{selectedClienteDetails.cpfCnpj || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Inscrição Estadual</span>
+                    <span className="font-mono font-medium text-slate-700">{selectedClienteDetails.inscricaoEstadual || 'Isento'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-3">
+                <h3 className="font-bold text-slate-800 text-xs border-b border-slate-200/60 pb-2">Contato</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Telefone</span>
+                    <span className="font-medium text-slate-700">{selectedClienteDetails.telefone || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">E-mail</span>
+                    <span className="font-medium text-slate-700">{selectedClienteDetails.email || '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-2">
+                <h3 className="font-bold text-slate-800 text-xs border-b border-slate-200/60 pb-2">Observações</h3>
+                <p className="text-slate-600 whitespace-normal break-words leading-relaxed">
+                  {selectedClienteDetails.observacao || 'Nenhuma observação cadastrada.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap justify-between items-center gap-2 p-4 sm:px-6 border-t border-slate-100 flex-shrink-0">
+              <div className="flex flex-wrap gap-2">
+                <ActionButton
+                  label="Histórico de Compras"
+                  icon="📊"
+                  variant="subtle"
+                  size="sm"
+                  title="Ver histórico de compras"
+                  onClick={() => {
+                    const c = selectedClienteDetails;
+                    setSelectedClienteDetails(null);
+                    handleOpenHistorico(c);
+                  }}
+                />
+                <ActionButton
+                  label="Editar"
+                  icon="✏️"
+                  variant="outline"
+                  size="sm"
+                  title="Editar cliente"
+                  onClick={() => {
+                    const c = selectedClienteDetails;
+                    setSelectedClienteDetails(null);
+                    handleOpenEditModal(c);
+                  }}
+                />
+                <ActionButton
+                  label="Excluir"
+                  icon="🗑️"
+                  variant="dangerSubtle"
+                  size="sm"
+                  title="Excluir cliente"
+                  onClick={() => {
+                    const c = selectedClienteDetails;
+                    setSelectedClienteDetails(null);
+                    setDeleteConfirmCliente(c);
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={() => setSelectedClienteDetails(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs active:scale-95 transition-all"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal / Drawer de Histórico de Vendas do Cliente */}
       {historicoCliente && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-3xl space-y-5 shadow-2xl my-auto animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl my-auto animate-in zoom-in-95 duration-150 overflow-hidden">
             {/* Header */}
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div className="flex justify-between items-center border-b border-slate-100 p-4 sm:px-6 sm:py-4 flex-shrink-0">
               <div>
                 <h2 className="text-base font-bold text-slate-900">
                   Histórico Comercial — {historicoCliente.cliente.nome}
@@ -730,64 +817,66 @@ export default function Clientes() {
               </button>
             </div>
 
-            {/* KPI Cards Header Summary */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total de Vendas</span>
-                <span className="text-base font-extrabold text-slate-800">{historicoCliente.vendasCount} pedidos</span>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Valor Acumulado</span>
-                <span className="text-base font-extrabold text-blue-600">{formatCurrencyBRL(historicoCliente.totalComprado)}</span>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Ticket Médio</span>
-                <span className="text-base font-extrabold text-emerald-600">{formatCurrencyBRL(historicoCliente.ticketMedio)}</span>
-              </div>
-            </div>
-
-            {/* Sales Timeline List (Descending date) */}
-            <div className="space-y-2 text-xs">
-              <h3 className="font-bold text-slate-700">Histórico de Pedidos de Venda:</h3>
-              {historicoCliente.vendas.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-xl text-slate-400">
-                  Nenhuma venda cadastrada para este cliente até o momento.
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 text-xs">
+              {/* KPI Cards Header Summary */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total de Vendas</span>
+                  <span className="text-base font-extrabold text-slate-800">{historicoCliente.vendasCount} pedidos</span>
                 </div>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {historicoCliente.vendas.map((v) => (
-                    <div
-                      key={v.id}
-                      onClick={() => setVendaDetalheModal(v)}
-                      className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-800 flex items-center gap-2">
-                          <span>Venda #{v.id}</span>
-                          <span className="text-slate-400 text-[10px] font-mono">({v.dataVenda})</span>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Valor Acumulado</span>
+                  <span className="text-base font-extrabold text-blue-600">{formatCurrencyBRL(historicoCliente.totalComprado)}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Ticket Médio</span>
+                  <span className="text-base font-extrabold text-emerald-600">{formatCurrencyBRL(historicoCliente.ticketMedio)}</span>
+                </div>
+              </div>
+
+              {/* Sales Timeline List (Descending date) */}
+              <div className="space-y-2 text-xs">
+                <h3 className="font-bold text-slate-700">Histórico de Pedidos de Venda:</h3>
+                {historicoCliente.vendas.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 rounded-xl text-slate-400">
+                    Nenhuma venda cadastrada para este cliente até o momento.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {historicoCliente.vendas.map((v) => (
+                      <div
+                        key={v.id}
+                        onClick={() => setVendaDetalheModal(v)}
+                        className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-800 flex items-center gap-2">
+                            <span>Venda #{v.id}</span>
+                            <span className="text-slate-400 text-[10px] font-mono">({v.dataVenda})</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {v.itens.length} item(ns) | Prazo: {v.prazoFaturamentoDias} dias
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-500">
-                          {v.itens.length} item(ns) | Prazo: {v.prazoFaturamentoDias} dias
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="font-extrabold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</div>
+                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border ${statusBadges[v.status]}`}>
+                              {v.status}
+                            </span>
+                          </div>
+                          <span className="text-slate-400 text-xs">🔍</span>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className="font-extrabold text-slate-900">{formatCurrencyBRL(v.valorTotal)}</div>
-                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border ${statusBadges[v.status]}`}>
-                            {v.status}
-                          </span>
-                        </div>
-                        <span className="text-slate-400 text-xs">🔍</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Modal Quick Actions */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2 p-4 sm:px-6 border-t border-slate-100 flex-shrink-0">
               <div className="flex gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => {
@@ -878,15 +967,15 @@ export default function Clientes() {
       {/* Modal Form Novo / Editar Cliente */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center border-b pb-3">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-150 overflow-hidden">
+            <div className="flex justify-between items-center border-b p-4 sm:px-6 flex-shrink-0">
               <h2 className="text-base font-bold text-slate-800">
                 {editingClienteId ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}
               </h2>
               <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Nome Razão Social *</label>
                 <input

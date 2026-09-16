@@ -2,6 +2,8 @@ package com.erp.multitenant.controller;
 
 import com.erp.multitenant.dto.AuthResponseDTO;
 import com.erp.multitenant.dto.LoginRequestDTO;
+import com.erp.multitenant.model.Usuario;
+import com.erp.multitenant.repository.UsuarioRepository;
 import com.erp.multitenant.security.JwtProvider;
 import com.erp.multitenant.service.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,9 +13,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
@@ -21,14 +26,23 @@ public class AuthController {
 
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AuthController(JwtProvider jwtProvider, RefreshTokenService refreshTokenService) {
+    public AuthController(
+            JwtProvider jwtProvider,
+            RefreshTokenService refreshTokenService,
+            UsuarioRepository usuarioRepository,
+            PasswordEncoder passwordEncoder
+    ) {
         this.jwtProvider = jwtProvider;
         this.refreshTokenService = refreshTokenService;
+        this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> login(
+    public ResponseEntity<?> login(
             @RequestBody @Valid LoginRequestDTO loginDTO,
             HttpServletRequest request,
             HttpServletResponse response
@@ -36,13 +50,31 @@ public class AuthController {
         String headerTenantId = request.getHeader("X-Tenant-ID");
         String tenantId = resolveTenantId(loginDTO.username(), loginDTO.tenantId(), headerTenantId);
 
-        String accessToken = jwtProvider.generateAccessToken(loginDTO.username(), tenantId, List.of("ROLE_USER"));
-        String refreshToken = refreshTokenService.createRefreshToken(loginDTO.username(), tenantId);
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByUsernameAndTenantId(loginDTO.username(), tenantId);
+        if (usuarioOpt.isEmpty()) {
+            usuarioOpt = usuarioRepository.findByUsername(loginDTO.username());
+        }
+
+        if (usuarioOpt.isEmpty() || !passwordEncoder.matches(loginDTO.password(), usuarioOpt.get().getSenhaHash())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of(
+                            "error", "Unauthorized",
+                            "message", "Credenciais inválidas. Usuário ou senha incorretos."
+                    ));
+        }
+
+        Usuario usuario = usuarioOpt.get();
+        String activeTenantId = (usuario.getTenantId() != null && !usuario.getTenantId().isBlank())
+                ? usuario.getTenantId()
+                : tenantId;
+
+        String accessToken = jwtProvider.generateAccessToken(usuario.getUsername(), activeTenantId, List.of("ROLE_USER"));
+        String refreshToken = refreshTokenService.createRefreshToken(usuario.getUsername(), activeTenantId);
 
         ResponseCookie cookie = refreshTokenService.buildRefreshTokenCookie(refreshToken, 7 * 24 * 3600);
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        return ResponseEntity.ok(new AuthResponseDTO(accessToken, tenantId));
+        return ResponseEntity.ok(new AuthResponseDTO(accessToken, activeTenantId));
     }
 
     @PostMapping("/refresh")

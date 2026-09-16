@@ -201,7 +201,7 @@ export default function Produtos() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto pr-2">
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 border-b border-slate-200/80 uppercase font-bold text-slate-500 tracking-wider">
                 <tr>
@@ -210,12 +210,12 @@ export default function Produtos() {
                   <th className="p-4">Preço de Venda</th>
                   <th className="p-4">Margem de Lucro</th>
                   <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Ações</th>
+                  <th className="p-4 pr-6 text-right w-36">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {produtos.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors h-auto">
                     <td className="p-4">
                       <div className="font-bold text-slate-800 text-sm">{p.nome}</div>
                       {p.sku && <div className="text-[10px] text-slate-400 font-mono">{p.sku}</div>}
@@ -242,28 +242,77 @@ export default function Produtos() {
                         {p.status}
                       </span>
                     </td>
-                    <td className="p-4 text-right space-x-1 whitespace-nowrap">
-                      <ActionButton
-                        label="Editar"
-                        icon="✏️"
-                        variant="outline"
-                        size="xs"
-                        title="Editar produto"
-                        onClick={() => handleOpenEditModal(p)}
-                      />
-                      <ActionButton
-                        label="Excluir"
-                        icon="🗑️"
-                        variant="dangerSubtle"
-                        size="xs"
-                        title="Excluir produto"
-                        onClick={() => setDeleteConfirmProd(p)}
-                      />
+                    <td className="p-4 pr-6 text-right w-36">
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <ActionButton
+                          label="Editar"
+                          icon="✏️"
+                          variant="outline"
+                          size="xs"
+                          title="Editar produto"
+                          onClick={() => handleOpenEditModal(p)}
+                        />
+                        <ActionButton
+                          label="Excluir"
+                          icon="🗑️"
+                          variant="dangerSubtle"
+                          size="xs"
+                          title="Excluir produto"
+                          onClick={() => setDeleteConfirmProd(p)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile View Cards */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {produtos.map((p) => (
+              <div key={p.id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-bold text-sm text-slate-800">{p.nome}</div>
+                    {p.sku && <div className="text-[10px] text-slate-400 font-mono">{p.sku}</div>}
+                    <div className="mt-1">
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
+                        p.status === 'ATIVO' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ActionButton
+                      label="Editar"
+                      icon="✏️"
+                      variant="outline"
+                      size="xs"
+                      title="Editar produto"
+                      onClick={() => handleOpenEditModal(p)}
+                    />
+                    <ActionButton
+                      label="Excluir"
+                      icon="🗑️"
+                      variant="dangerSubtle"
+                      size="xs"
+                      title="Excluir produto"
+                      onClick={() => setDeleteConfirmProd(p)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-100">
+                  <span className="text-slate-500 font-medium">Custo: {formatCurrencyBRL(p.precoCusto)}</span>
+                  <span className="font-extrabold text-blue-600 font-mono text-xs">Venda: {formatCurrencyBRL(p.precoVenda)}</span>
+                  <span className="font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[10px]">
+                    +{typeof p.margemLucro === 'number' ? p.margemLucro.toFixed(2).replace('.', ',') : p.margemLucro}%
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -271,15 +320,15 @@ export default function Produtos() {
       {/* Modal Novo / Editar Produto */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center border-b pb-3">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-150 overflow-hidden">
+            <div className="flex justify-between items-center border-b p-4 sm:px-6 flex-shrink-0">
               <h2 className="text-base font-bold text-slate-800">
                 {editingProdutoId ? 'Editar Produto' : 'Cadastrar Produto'}
               </h2>
               <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Nome do Produto *</label>
                 <input

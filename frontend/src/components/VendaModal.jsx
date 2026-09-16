@@ -4,6 +4,7 @@ import api from '../services/api';
 import { formatCurrencyBRL, applyCurrencyMask, parseCurrencyToNumber } from '../utils/money';
 import { useToast } from '../context/ToastContext';
 import ActionButton from './ActionButton';
+import { dispatchSaleDocument } from '../utils/dispatchHelper';
 
 const createEmptyItem = () => ({
   produtoId: '',
@@ -187,6 +188,31 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
     if (!validateForm()) return;
     setIsSubmitting(true);
 
+    // CRITICAL FOR POPUP BLOCKER BYPASS:
+    // Open placeholder popup synchronously on click, BEFORE any async await calls
+    let waWindow = null;
+    if (enviarWhatsapp) {
+      try {
+        waWindow = window.open('about:blank', '_blank');
+        if (waWindow && waWindow.document) {
+          waWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head><title>Processando WhatsApp...</title></head>
+              <body style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #334155;">
+                <div style="text-align: center; padding: 20px;">
+                  <h3 style="margin-bottom: 8px;">🔄 Salvando pedido e preparando WhatsApp...</h3>
+                  <p style="color: #64748b; font-size: 14px;">Aguarde alguns segundos, você será redirecionado para a conversa em breve.</p>
+                </div>
+              </body>
+            </html>
+          `);
+        }
+      } catch {
+        waWindow = null;
+      }
+    }
+
     try {
       const payload = {
         clienteId: parseInt(clienteId, 10),
@@ -208,21 +234,25 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
       const res = await api.post('/vendas', payload);
       const salvaId = res.data?.id;
 
-      // Disparo automático de e-mail / whatsapp se selecionado
-      if (salvaId && (enviarEmail || enviarWhatsapp)) {
-        try {
-          await api.post(`/vendas/${salvaId}/emissao-envio`, {
-            enviarEmail,
-            enviarWhatsapp,
-            formatoDocumento,
-          });
-        } catch {
-          // Log visual sem travar a venda
-        }
-      }
-
       const statusDesc = targetStatus === 'ORCAMENTO' ? 'Orçamento de Venda' : 'Venda Confirmada';
-      showSuccess(`${statusDesc} salvo(a) com sucesso! ✓`);
+      showSuccess(`${statusDesc} #${salvaId} salvo(a) com sucesso! ✓`);
+
+      if (salvaId && (enviarEmail || enviarWhatsapp)) {
+        await dispatchSaleDocument({
+          vendaId: salvaId,
+          status: targetStatus,
+          cliente: selectedCliente,
+          itens: validItens,
+          valorTotal: valorTotalFinal,
+          prazoDias: prazoDiasFinal,
+          enviarEmail,
+          enviarWhatsapp,
+          formatoDocumento,
+          showSuccess,
+          showError,
+          preOpenedWindow: waWindow,
+        });
+      }
 
       queryClient.invalidateQueries({ queryKey: ['vendas'] });
       queryClient.invalidateQueries({ queryKey: ['parcelas'] });
@@ -230,6 +260,9 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
 
       onClose();
     } catch (err) {
+      if (waWindow && !waWindow.closed) {
+        waWindow.close();
+      }
       showError(err.response?.data?.message || 'Falha ao gravar registro no banco de dados.');
     } finally {
       setIsSubmitting(false);
@@ -237,10 +270,10 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 w-full max-w-2xl space-y-5 shadow-2xl my-auto animate-in zoom-in-95 duration-150 border border-slate-200 dark:border-slate-800">
+    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl my-auto animate-in zoom-in-95 duration-150 border border-slate-200 dark:border-slate-800 overflow-hidden">
         {/* Modal Header */}
-        <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 p-4 sm:px-6 sm:py-4 flex-shrink-0">
           <div>
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
               {initialData ? 'Duplicar / Lançar Venda' : 'Emissão de Nova Venda ou Orçamento'}
@@ -252,7 +285,9 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
           </button>
         </div>
 
-        <form onSubmit={(e) => e.preventDefault()} className="space-y-4 text-xs">
+        <form onSubmit={(e) => e.preventDefault()} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
           {/* 1. Seleção de Cliente */}
           <div>
             <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">1. Selecionar Cliente *</label>
@@ -505,8 +540,10 @@ export default function VendaModal({ isOpen, onClose, initialData = null }) {
             </div>
           </div>
 
-          {/* Modal Actions: TWO distinct submit options (Item 3.4) */}
-          <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          </div>
+
+          {/* Modal Actions Fixed Footer */}
+          <div className="flex-shrink-0 p-3 sm:px-6 sm:py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col-reverse sm:flex-row justify-end gap-2 z-10">
             <ActionButton
               label="Cancelar"
               variant="secondary"
