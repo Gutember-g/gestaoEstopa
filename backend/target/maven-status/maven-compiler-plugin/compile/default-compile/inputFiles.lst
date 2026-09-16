@@ -47,6 +47,7 @@ C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multi
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\config\TenantContext.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\controller\FinanceiroController.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\BuscaGlobalDTO.java
+C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\config\DataInitializer.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\VendaEnvioRequestDTO.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\dto\VendaEnvioHistoricoDTO.java
 C:\Users\guter\Documents\GitHub\gestaoEstopa\backend\src\main\java\com\erp\multitenant\model\Produto.java

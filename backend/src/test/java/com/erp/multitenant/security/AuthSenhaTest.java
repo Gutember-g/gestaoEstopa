@@ -41,7 +41,6 @@ class AuthSenhaTest {
 
     @BeforeEach
     void setUp() {
-        // Assegurar que o usuário admin existe com a senha 'admin123'
         Usuario usuario = usuarioRepository.findByUsername("admin")
                 .orElseGet(() -> new Usuario("admin", "", "admin@gestaoestopa.com", "Admin Teste", "Admin", "empresa_demo"));
 

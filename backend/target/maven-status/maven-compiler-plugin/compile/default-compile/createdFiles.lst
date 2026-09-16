@@ -9,6 +9,7 @@ com\erp\multitenant\repository\VendaEnvioHistoricoRepository.class
 com\erp\multitenant\dto\VendaEnvioRequestDTO.class
 com\erp\multitenant\controller\ConfiguracaoEnvioController.class
 com\erp\multitenant\security\CustomAuthenticationEntryPoint.class
+com\erp\multitenant\config\DataInitializer.class
 com\erp\multitenant\model\Venda.class
 com\erp\multitenant\service\ConfiguracaoEnvioService.class
 com\erp\multitenant\model\StatusParcela.class

@@ -15,6 +15,6 @@ CREATE TABLE tb_usuario (
 CREATE INDEX idx_usuario_username_tenant ON tb_usuario(username, tenant_id);
 
 -- Carga Inicial de Usuário Padrão (admin / admin123)
--- Hash BCrypt para a senha 'admin123': $2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xd00DMxs.AQubh4a
+-- Hash BCrypt válido gerado para 'admin123': $2a$10$AB2g26VtfJamqV5sa9VSVuBhUqDhQ6DrJa0l.6wZCgYgrkOJCdWcq
 INSERT INTO tb_usuario (username, senha_hash, email, nome, cargo, tenant_id)
-VALUES ('admin', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xd00DMxs.AQubh4a', 'gabriel@flowerp.com.br', 'Gabriel Andrade', 'Administrador', 'empresa_demo');
+VALUES ('admin', '$2a$10$AB2g26VtfJamqV5sa9VSVuBhUqDhQ6DrJa0l.6wZCgYgrkOJCdWcq', 'gabriel@flowerp.com.br', 'Gabriel Andrade', 'Administrador', 'empresa_demo');
