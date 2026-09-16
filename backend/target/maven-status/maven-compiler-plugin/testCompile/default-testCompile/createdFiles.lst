@@ -2,5 +2,6 @@ com\erp\multitenant\DashboardServiceTest.class
 com\erp\multitenant\security\SecurityExceptionHandlingTest.class
 com\erp\multitenant\security\TokenRotationAndReuseTest.class
 com\erp\multitenant\security\JwtProviderTest.class
+com\erp\multitenant\service\NotificacaoServiceTest.class
 com\erp\multitenant\security\AuthSenhaTest.class
 com\erp\multitenant\service\RefreshTokenServiceTest.class

@@ -26,13 +26,18 @@ public class VendaService {
     private final VendaRepository vendaRepository;
     private final ClienteRepository clienteRepository;
     private final ParcelaRepository parcelaRepository;
+    private final NotificacaoService notificacaoService;
 
-    public VendaService(VendaRepository vendaRepository,
-                        ClienteRepository clienteRepository,
-                        ParcelaRepository parcelaRepository) {
+    public VendaService(
+            VendaRepository vendaRepository,
+            ClienteRepository clienteRepository,
+            ParcelaRepository parcelaRepository,
+            NotificacaoService notificacaoService
+    ) {
         this.vendaRepository = vendaRepository;
         this.clienteRepository = clienteRepository;
         this.parcelaRepository = parcelaRepository;
+        this.notificacaoService = notificacaoService;
     }
 
     @Transactional(readOnly = true)
@@ -61,8 +66,10 @@ public class VendaService {
         String tenantId = TenantContext.getCurrentTenant();
         if (tenantId == null || tenantId.isBlank()) tenantId = "empresa_demo";
 
+        boolean isNew = (dto.getId() == null || dto.getId() <= 0 || !vendaRepository.existsById(dto.getId()));
+
         Venda venda;
-        if (dto.getId() != null && dto.getId() > 0 && vendaRepository.existsById(dto.getId())) {
+        if (!isNew) {
             venda = vendaRepository.findById(dto.getId()).orElseGet(Venda::new);
         } else {
             venda = new Venda();
@@ -122,6 +129,30 @@ public class VendaService {
                 parcela.setStatus(StatusParcela.PENDENTE);
                 parcela.setTenantId(tenantId);
                 parcelaRepository.save(parcela);
+            }
+        }
+
+        if (isNew) {
+            if ("ORCAMENTO".equalsIgnoreCase(salva.getStatus()) || "PENDENTE".equalsIgnoreCase(salva.getStatus())) {
+                notificacaoService.criarNotificacao(
+                        tenantId,
+                        "venda",
+                        "🛒",
+                        "Venda Pendente de Confirmação",
+                        "Venda #" + salva.getId() + " no valor de R$ " + salva.getValorTotal() + " aguarda aprovação.",
+                        salva.getId(),
+                        "/vendas"
+                );
+            } else {
+                notificacaoService.criarNotificacao(
+                        tenantId,
+                        "venda",
+                        "🛒",
+                        "Nova Venda Realizada",
+                        "Venda #" + salva.getId() + " no valor de R$ " + salva.getValorTotal() + " foi registrada com sucesso.",
+                        salva.getId(),
+                        "/vendas"
+                );
             }
         }
 

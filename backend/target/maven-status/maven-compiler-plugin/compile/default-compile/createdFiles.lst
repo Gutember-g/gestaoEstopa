@@ -6,6 +6,7 @@ com\erp\multitenant\dto\EmpresaDTO.class
 com\erp\multitenant\repository\ProdutoRepository.class
 com\erp\multitenant\controller\PerfilController.class
 com\erp\multitenant\repository\VendaEnvioHistoricoRepository.class
+com\erp\multitenant\repository\NotificacaoRepository.class
 com\erp\multitenant\dto\VendaEnvioRequestDTO.class
 com\erp\multitenant\controller\ConfiguracaoEnvioController.class
 com\erp\multitenant\security\CustomAuthenticationEntryPoint.class
@@ -26,10 +27,12 @@ com\erp\multitenant\dto\LoginRequestDTO.class
 com\erp\multitenant\service\FinanceiroService.class
 com\erp\multitenant\repository\ItemVendaRepository.class
 com\erp\multitenant\security\CustomAccessDeniedHandler.class
+com\erp\multitenant\service\NotificacaoService.class
 com\erp\multitenant\dto\HistoricoMesDTO.class
 com\erp\multitenant\service\ClienteExportService.class
 com\erp\multitenant\config\TenantContext.class
 com\erp\multitenant\repository\ConfiguracaoEnvioRepository.class
+com\erp\multitenant\model\Notificacao.class
 com\erp\multitenant\dto\TopProdutoDTO.class
 com\erp\multitenant\dto\NotificacaoDTO.class
 com\erp\multitenant\controller\ClienteController.class
